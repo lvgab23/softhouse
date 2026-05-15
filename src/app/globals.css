@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: #f8fafc;
+    color: #0f172a;
+  }
+}
+
+/* Fix Leaflet tile images broken by Tailwind preflight */
+.leaflet-container img {
+  max-width: none !important;
+  display: inline !important;
+}
+.leaflet-container {
+  z-index: 0;
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}

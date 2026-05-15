@@ -1,0 +1,44 @@
+{
+  "name": "softhouse",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "@hookform/resolvers": "^5.2.2",
+    "@react-pdf/renderer": "^4.5.1",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
+    "@types/leaflet": "^1.9.21",
+    "@types/pg": "^8.20.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.14.0",
+    "next": "14.2.35",
+    "pg": "^8.20.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.75.0",
+    "recharts": "^3.8.1",
+    "resend": "^6.12.3",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
