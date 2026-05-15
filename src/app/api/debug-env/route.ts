@@ -1,22 +1,25 @@
 import { NextResponse } from 'next/server'
 
+const clean = (s: string = '') => s.replace(/^﻿/, '').replace(/[^\x20-\x7E]/g, '').trim()
+
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-  const nonIsoInUrl = [...url].filter(c => c.charCodeAt(0) > 255).map(c => ({ char: c, code: c.charCodeAt(0) }))
-  const nonIsoInKey = [...key].filter(c => c.charCodeAt(0) > 255).map(c => ({ char: c, code: c.charCodeAt(0) }))
+  const urlClean = clean(url)
+  const keyClean = clean(key)
 
   return NextResponse.json({
-    urlLength: url.length,
-    urlExpected: 43,
-    urlOk: url.length === 43 && nonIsoInUrl.length === 0,
-    urlNonIso: nonIsoInUrl,
-    urlFirst10Codes: [...url.substring(0, 10)].map(c => c.charCodeAt(0)),
-    keyLength: key.length,
-    keyExpected: 219,
-    keyOk: key.length === 219 && nonIsoInKey.length === 0,
-    keyNonIso: nonIsoInKey,
-    keyFirst10Codes: [...key.substring(0, 10)].map(c => c.charCodeAt(0)),
+    raw: {
+      urlHasBom: url.charCodeAt(0) === 65279,
+      keyHasBom: key.charCodeAt(0) === 65279,
+    },
+    cleaned: {
+      urlOk: urlClean.length === 43 && urlClean.startsWith('https://'),
+      keyOk: keyClean.length === 219 && keyClean.startsWith('eyJ'),
+      urlLength: urlClean.length,
+      keyLength: keyClean.length,
+      urlFirst5: urlClean.substring(0, 5),
+      keyFirst5: keyClean.substring(0, 5),
+    }
   })
 }
