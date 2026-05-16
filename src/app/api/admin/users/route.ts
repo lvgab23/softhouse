@@ -4,13 +4,14 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 const ADMIN_EMAIL = 'medeiros.gabrielsmb@gmail.com'
+const clean = (s: string = '') => s.replace(/^﻿/, '').replace(/[^\x20-\x7E]/g, '').trim()
 
 async function getCallerEmail(): Promise<string | null> {
   try {
     const cookieStore = await cookies()
     const sb = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      clean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
       { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
     )
     const { data: { user } } = await sb.auth.getUser()
@@ -20,8 +21,8 @@ async function getCallerEmail(): Promise<string | null> {
 
 function adminClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    clean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    clean(process.env.SUPABASE_SERVICE_ROLE_KEY)
   )
 }
 
