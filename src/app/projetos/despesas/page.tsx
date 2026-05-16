@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Search, ChevronDown, Trash2, TrendingDown, FolderOpen, Tag, Copy, Check } from 'lucide-react'
+import { Plus, Search, ChevronDown, Trash2, TrendingDown, FolderOpen, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
@@ -49,26 +49,6 @@ const PERIODS = [
   { value: 'ano', label: 'Este ano' },
 ]
 
-const SQL_MIGRATION = `-- Execute no SQL Editor do Supabase:
--- https://supabase.com/dashboard/project/_/sql/new
-
-CREATE TABLE IF NOT EXISTS despesas_operacionais (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES auth.users NOT NULL,
-  projeto_id uuid REFERENCES projetos(id) ON DELETE SET NULL,
-  valor numeric NOT NULL,
-  data date NOT NULL,
-  descricao text,
-  categoria text DEFAULT 'outros',
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE despesas_operacionais ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "users own despesas_operacionais"
-  ON despesas_operacionais FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);`
 
 const schema = z.object({
   projeto_id: z.string().min(1, 'Projeto obrigatório'),
@@ -91,7 +71,6 @@ export default function DespesasPage() {
   const [projetoFilter, setProjetoFilter] = useState('todos')
   const [periodoFilter, setPeriodoFilter] = useState('todos')
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -99,6 +78,9 @@ export default function DespesasPage() {
   })
 
   const fetchData = useCallback(async () => {
+    // Run migration silently so the table always exists
+    await fetch('/api/admin/migrate-patrimonio', { method: 'POST' }).catch(() => {})
+
     const supabase = createClient()
     const [d, p] = await Promise.all([
       (supabase as any).from('despesas_operacionais').select('*, projetos(nome)').order('data', { ascending: false }),
@@ -167,12 +149,6 @@ export default function DespesasPage() {
     fetchData()
   }
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(SQL_MIGRATION)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   const totalDespesas = filtered.reduce((s, d) => s + (d.valor || 0), 0)
   const projetosComDespesa = new Set(filtered.map(d => d.projeto_id)).size
   const maiorCategoria = useMemo(() => {
@@ -203,23 +179,8 @@ export default function DespesasPage() {
 
       <div className="p-6 space-y-5">
         {!tableExists && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-amber-800 mb-1">Tabela não encontrada</p>
-                <p className="text-xs text-amber-700 mb-3">Execute o SQL abaixo no Supabase para habilitar as despesas operacionais:</p>
-                <pre className="text-[10px] bg-white rounded-lg p-3 border border-amber-100 text-gray-700 select-all whitespace-pre-wrap font-mono">
-                  {SQL_MIGRATION}
-                </pre>
-              </div>
-              <button
-                onClick={handleCopy}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-800 text-white text-xs hover:bg-amber-900 transition-colors"
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'Copiado!' : 'Copiar SQL'}
-              </button>
-            </div>
+          <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+            Preparando módulo de despesas...
           </div>
         )}
 

@@ -94,13 +94,18 @@ export default function ImoveisPage() {
   const socioAquisicao = watch('socio_aquisicao')
 
   const fetchData = useCallback(async () => {
+    // Run migration silently so columns always exist
+    await fetch('/api/admin/migrate-patrimonio', { method: 'POST' }).catch(() => {})
+
     const supabase = createClient()
     const [p, c] = await Promise.all([
       supabase.from('patrimonios').select('*, categorias(nome)').order('created_at', { ascending: false }),
       supabase.from('categorias').select('*').order('nome'),
     ])
     const items = p.data || []
+    // After migration, columns should exist — only fall back if still missing
     if (items.length > 0 && !('tipo_aquisicao' in items[0])) setNeedsAquisicaoMigration(true)
+    else setNeedsAquisicaoMigration(false)
     setPatrimonios(items)
     setCategorias(c.data || [])
     setLoading(false)
@@ -257,20 +262,6 @@ export default function ImoveisPage() {
       </Topbar>
 
       <div className="p-6">
-        {needsAquisicaoMigration && (
-          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs font-semibold text-amber-800 mb-1">Execute no SQL Editor do Supabase para habilitar detalhes de aquisição:</p>
-            <pre className="text-[10px] bg-white rounded p-2 border border-amber-100 text-gray-700 select-all mt-1">
-{`ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS tipo_aquisicao TEXT;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS avista_valor NUMERIC;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS financiamento_valor NUMERIC;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS consorcio_valor NUMERIC;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao BOOLEAN DEFAULT FALSE;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao_nome TEXT;
-ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao_valor NUMERIC;`}
-            </pre>
-          </div>
-        )}
         <div className="mb-4 flex items-center gap-2">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
