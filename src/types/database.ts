@@ -76,6 +76,13 @@ export interface Database {
           status: 'ativo' | 'inativo' | 'negociacao' | 'vendido'
           kanban_coluna: string | null
           notas: string | null
+          tipo_aquisicao: string | null
+          financiamento_valor: number | null
+          avista_valor: number | null
+          consorcio_valor: number | null
+          socio_aquisicao: boolean | null
+          socio_aquisicao_valor: number | null
+          socio_aquisicao_nome: string | null
           created_at: string
           updated_at: string
         }
@@ -98,6 +105,13 @@ export interface Database {
           status?: 'ativo' | 'inativo' | 'negociacao' | 'vendido'
           kanban_coluna?: string | null
           notas?: string | null
+          tipo_aquisicao?: string | null
+          financiamento_valor?: number | null
+          avista_valor?: number | null
+          consorcio_valor?: number | null
+          socio_aquisicao?: boolean | null
+          socio_aquisicao_valor?: number | null
+          socio_aquisicao_nome?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -120,6 +134,13 @@ export interface Database {
           status?: 'ativo' | 'inativo' | 'negociacao' | 'vendido'
           kanban_coluna?: string | null
           notas?: string | null
+          tipo_aquisicao?: string | null
+          financiamento_valor?: number | null
+          avista_valor?: number | null
+          consorcio_valor?: number | null
+          socio_aquisicao?: boolean | null
+          socio_aquisicao_valor?: number | null
+          socio_aquisicao_nome?: string | null
           updated_at?: string
         }
       }
@@ -357,6 +378,9 @@ export interface Database {
           valor: number | null
           data: string | null
           descricao: string | null
+          tipo: string | null
+          banco: string | null
+          socio_nome: string | null
           created_at: string
         }
         Insert: {
@@ -366,6 +390,9 @@ export interface Database {
           valor?: number | null
           data?: string | null
           descricao?: string | null
+          tipo?: string | null
+          banco?: string | null
+          socio_nome?: string | null
           created_at?: string
         }
         Update: {
@@ -375,6 +402,40 @@ export interface Database {
           valor?: number | null
           data?: string | null
           descricao?: string | null
+          tipo?: string | null
+          banco?: string | null
+          socio_nome?: string | null
+        }
+      }
+      despesas_operacionais: {
+        Row: {
+          id: string
+          user_id: string
+          projeto_id: string | null
+          valor: number
+          data: string
+          descricao: string | null
+          categoria: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          projeto_id?: string | null
+          valor: number
+          data: string
+          descricao?: string | null
+          categoria?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          projeto_id?: string | null
+          valor?: number
+          data?: string
+          descricao?: string | null
+          categoria?: string | null
         }
       }
     }
@@ -392,3 +453,4 @@ export type Historico = Database['public']['Tables']['historico']['Row']
 export type Colaborador = Database['public']['Tables']['colaboradores']['Row']
 export type Projeto = Database['public']['Tables']['projetos']['Row']
 export type Aporte = Database['public']['Tables']['aportes']['Row']
+export type DespesaOperacional = Database['public']['Tables']['despesas_operacionais']['Row']

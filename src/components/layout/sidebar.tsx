@@ -38,6 +38,7 @@ const navItems = [
       { href: '/projetos/usinas-solares', label: 'Usinas Solares' },
       { href: '/projetos/aportes', label: 'Aportes' },
       { href: '/projetos/retornos', label: 'Retornos' },
+      { href: '/projetos/despesas', label: 'Desp. Operacionais' },
       { href: '/projetos/relatorios', label: 'Relatórios' },
     ],
   },

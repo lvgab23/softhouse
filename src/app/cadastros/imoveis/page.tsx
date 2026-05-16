@@ -37,6 +37,14 @@ const schema = z.object({
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
   notas: z.string().optional(),
+  // Aquisição
+  tipo_aquisicao: z.string().optional(),
+  avista_valor: z.coerce.number().optional(),
+  financiamento_valor: z.coerce.number().optional(),
+  consorcio_valor: z.coerce.number().optional(),
+  socio_aquisicao: z.boolean().optional(),
+  socio_aquisicao_nome: z.string().optional(),
+  socio_aquisicao_valor: z.coerce.number().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -74,13 +82,16 @@ export default function ImoveisPage() {
   const [loadingCEP, setLoadingCEP] = useState(false)
   const [valorAqDisplay, setValorAqDisplay] = useState('')
   const [valorAtDisplay, setValorAtDisplay] = useState('')
+  const [needsAquisicaoMigration, setNeedsAquisicaoMigration] = useState(false)
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'ativo' },
+    defaultValues: { status: 'ativo', tipo_aquisicao: '', socio_aquisicao: false },
   })
 
   const cepValue = watch('cep')
+  const tipoAquisicao = watch('tipo_aquisicao')
+  const socioAquisicao = watch('socio_aquisicao')
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -88,7 +99,9 @@ export default function ImoveisPage() {
       supabase.from('patrimonios').select('*, categorias(nome)').order('created_at', { ascending: false }),
       supabase.from('categorias').select('*').order('nome'),
     ])
-    setPatrimonios(p.data || [])
+    const items = p.data || []
+    if (items.length > 0 && !('tipo_aquisicao' in items[0])) setNeedsAquisicaoMigration(true)
+    setPatrimonios(items)
     setCategorias(c.data || [])
     setLoading(false)
   }, [])
@@ -128,12 +141,19 @@ export default function ImoveisPage() {
         latitude: item.latitude || undefined,
         longitude: item.longitude || undefined,
         notas: item.notas || '',
+        tipo_aquisicao: item.tipo_aquisicao || '',
+        avista_valor: item.avista_valor || undefined,
+        financiamento_valor: item.financiamento_valor || undefined,
+        consorcio_valor: item.consorcio_valor || undefined,
+        socio_aquisicao: item.socio_aquisicao || false,
+        socio_aquisicao_nome: item.socio_aquisicao_nome || '',
+        socio_aquisicao_valor: item.socio_aquisicao_valor || undefined,
       })
       setValorAqDisplay(item.valor_aquisicao ? item.valor_aquisicao.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '')
       setValorAtDisplay(item.valor_atual ? item.valor_atual.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '')
     } else {
       setEditing(null)
-      reset({ status: 'ativo' })
+      reset({ status: 'ativo', tipo_aquisicao: '', socio_aquisicao: false })
       setValorAqDisplay('')
       setValorAtDisplay('')
     }
@@ -146,7 +166,7 @@ export default function ImoveisPage() {
     if (!user) return
 
     // Build payload explicitly — never send empty strings for nullable fields
-    const payload: any = {
+    const basePayload: any = {
       nome: data.nome,
       categoria_id: data.categoria_id || null,
       valor_aquisicao: data.valor_aquisicao || null,
@@ -166,6 +186,18 @@ export default function ImoveisPage() {
       user_id: user.id,
       updated_at: new Date().toISOString(),
     }
+
+    const aquisicaoCols: any = {
+      tipo_aquisicao: data.tipo_aquisicao || null,
+      avista_valor: data.avista_valor || null,
+      financiamento_valor: data.financiamento_valor || null,
+      consorcio_valor: data.consorcio_valor || null,
+      socio_aquisicao: data.socio_aquisicao || false,
+      socio_aquisicao_nome: data.socio_aquisicao ? (data.socio_aquisicao_nome || null) : null,
+      socio_aquisicao_valor: data.socio_aquisicao ? (data.socio_aquisicao_valor || null) : null,
+    }
+
+    const payload: any = needsAquisicaoMigration ? basePayload : { ...basePayload, ...aquisicaoCols }
 
     if (editing) {
       const { error } = await supabase.from('patrimonios').update(payload).eq('id', editing.id)
@@ -225,6 +257,20 @@ export default function ImoveisPage() {
       </Topbar>
 
       <div className="p-6">
+        {needsAquisicaoMigration && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-amber-800 mb-1">Execute no SQL Editor do Supabase para habilitar detalhes de aquisição:</p>
+            <pre className="text-[10px] bg-white rounded p-2 border border-amber-100 text-gray-700 select-all mt-1">
+{`ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS tipo_aquisicao TEXT;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS avista_valor NUMERIC;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS financiamento_valor NUMERIC;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS consorcio_valor NUMERIC;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao BOOLEAN DEFAULT FALSE;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao_nome TEXT;
+ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS socio_aquisicao_valor NUMERIC;`}
+            </pre>
+          </div>
+        )}
         <div className="mb-4 flex items-center gap-2">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -385,6 +431,63 @@ export default function ImoveisPage() {
               <Input label="Longitude" type="number" step="any" placeholder="-46.6333" {...register('longitude')} />
             </div>
           </div>
+          {/* Aquisição */}
+          {!needsAquisicaoMigration && (
+            <div className="md:col-span-2 border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">Forma de Aquisição</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <Select label="Tipo de Aquisição" {...register('tipo_aquisicao')}>
+                    <option value="">Não informado</option>
+                    <option value="avista">À Vista</option>
+                    <option value="financiado">Financiado</option>
+                    <option value="consorcio">Consórcio</option>
+                    <option value="misto">Misto (combinação)</option>
+                  </Select>
+                </div>
+
+                {(tipoAquisicao === 'avista' || tipoAquisicao === 'misto') && (
+                  <div className="col-span-2 md:col-span-1">
+                    <Input label="Valor à Vista (R$)" type="number" step="0.01" placeholder="0,00" {...register('avista_valor')} />
+                  </div>
+                )}
+                {(tipoAquisicao === 'financiado' || tipoAquisicao === 'misto') && (
+                  <div className="col-span-2 md:col-span-1">
+                    <Input label="Valor Financiado (R$)" type="number" step="0.01" placeholder="0,00" {...register('financiamento_valor')} />
+                  </div>
+                )}
+                {(tipoAquisicao === 'consorcio' || tipoAquisicao === 'misto') && (
+                  <div className="col-span-2 md:col-span-1">
+                    <Input label="Valor Consórcio (R$)" type="number" step="0.01" placeholder="0,00" {...register('consorcio_valor')} />
+                  </div>
+                )}
+
+                <div className="col-span-2 md:col-span-4 flex items-center gap-2 mt-1">
+                  <input
+                    type="checkbox"
+                    id="socio_aquisicao"
+                    {...register('socio_aquisicao')}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <label htmlFor="socio_aquisicao" className="text-xs text-gray-600 cursor-pointer">
+                    Houve participação de sócio nesta aquisição
+                  </label>
+                </div>
+
+                {socioAquisicao && (
+                  <>
+                    <div className="col-span-2">
+                      <Input label="Nome do Sócio" placeholder="Ex: João da Silva" {...register('socio_aquisicao_nome')} />
+                    </div>
+                    <div className="col-span-2">
+                      <Input label="Valor Participação do Sócio (R$)" type="number" step="0.01" placeholder="0,00" {...register('socio_aquisicao_valor')} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="md:col-span-2">
             <Textarea label="Notas" placeholder="Observações..." rows={3} {...register('notas')} />
           </div>
