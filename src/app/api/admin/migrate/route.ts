@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Client } from 'pg'
+import { requireAdmin } from '@/lib/api-auth'
 
 const SQL = `
 CREATE TABLE IF NOT EXISTS usinas_solares_leituras (
@@ -61,6 +62,9 @@ ALTER TABLE usinas_solares ADD COLUMN IF NOT EXISTS alertas_ativo boolean DEFAUL
 `
 
 export async function GET() {
+  const { error: authError } = await requireAdmin()
+  if (authError) return authError
+
   const dbUrl = process.env.DATABASE_URL
 
   if (!dbUrl) {

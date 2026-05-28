@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { requireAuth } from '@/lib/api-auth'
 
 const BASE      = 'https://iop.saj-electric.com/dev-api'
 const USERNAME  = process.env.ELEKEEPER_USERNAME!
 const PASSWORD  = process.env.ELEKEEPER_PASSWORD!
 const PLANT_UID = process.env.ELEKEEPER_PLANT_UID!
 
-const AES_KEY  = 'ec1840a7c53cf0709eb784be480379b6'
-const SIGN_KEY = 'ktoKRLgQPjvNyUZO8lVc9kU1Bsip6XIe'
+const AES_KEY  = process.env.ELEKEEPER_AES_KEY  || 'ec1840a7c53cf0709eb784be480379b6'
+const SIGN_KEY = process.env.ELEKEEPER_SIGN_KEY || 'ktoKRLgQPjvNyUZO8lVc9kU1Bsip6XIe'
 const CHARSET  = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678'
 
 let cachedToken = ''
@@ -252,6 +253,9 @@ async function estimateAnual(ano: string, plantUid: string) {
 // ── GET handler ──────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const { user, error: authError } = await requireAuth()
+  if (authError) return authError
+
   const { searchParams } = new URL(req.url)
   const action   = searchParams.get('action') || 'status'
   const plantUid = searchParams.get('plantUid') || PLANT_UID
@@ -320,6 +324,14 @@ export async function GET(req: NextRequest) {
     const alarmeId = searchParams.get('alarmeId')
     if (!alarmeId) return NextResponse.json({ error: 'alarmeId required' }, { status: 400 })
     const sb = sbAdmin()
+    // Verify the alarm belongs to a usina owned by the authenticated user
+    const { data: alarme } = await sb.from('usinas_solares_alarmes')
+      .select('usina_id, usinas_solares!inner(user_id)')
+      .eq('id', alarmeId)
+      .single()
+    if (!alarme || (alarme.usinas_solares as any).user_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     await sb.from('usinas_solares_alarmes')
       .update({ ativo: false, resolvido_em: new Date().toISOString() })
       .eq('id', alarmeId)

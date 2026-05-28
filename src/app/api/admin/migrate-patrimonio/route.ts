@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/api-auth'
 
-const PROJECT_REF = 'pltrjmfcsyeqxrgxvdmz'
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'pltrjmfcsyeqxrgxvdmz'
 
 const MIGRATION_SQL = `
 ALTER TABLE patrimonios ADD COLUMN IF NOT EXISTS tipo_aquisicao TEXT;
@@ -23,6 +24,8 @@ CREATE TABLE IF NOT EXISTS despesas_operacionais (
   categoria text DEFAULT 'outros',
   created_at timestamptz DEFAULT now()
 );
+ALTER TABLE despesas_operacionais ADD COLUMN IF NOT EXISTS patrimonio_id uuid REFERENCES patrimonios(id) ON DELETE SET NULL;
+ALTER TABLE despesas_operacionais ADD COLUMN IF NOT EXISTS empresa_id uuid REFERENCES empresas(id) ON DELETE SET NULL;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -72,6 +75,9 @@ async function runSQL(sql: string): Promise<{ ok: boolean; error?: string }> {
 }
 
 export async function POST() {
+  const { error: authError } = await requireAdmin()
+  if (authError) return authError
+
   const r1 = await runSQL(MIGRATION_SQL)
   if (!r1.ok) return NextResponse.json({ ok: false, error: r1.error }, { status: 500 })
 

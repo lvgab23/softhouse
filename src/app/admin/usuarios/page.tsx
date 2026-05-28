@@ -46,6 +46,8 @@ export default function AdminUsuariosPage() {
       const { data: { user } } = await sb.auth.getUser()
       if (user?.email === ADMIN_EMAIL) {
         setIsAdmin(true)
+        // Apply security RLS migrations idempotently
+        fetch('/api/admin/migrate-security', { method: 'POST' }).catch(() => {})
       } else {
         router.replace('/dashboard')
       }

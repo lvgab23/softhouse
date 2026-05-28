@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   TrendingUp, TrendingDown, DollarSign, Target, FolderOpen,
-  ArrowUpRight, ArrowDownRight, User, Users, BarChart2,
+  User, Users, BarChart2,
 } from 'lucide-react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -56,30 +56,30 @@ function buildPeriodKeys(period: string, days: number): string[] {
 function KpiCard({
   label, value, sub, icon: Icon, color = 'blue', delta, trend,
 }: { label: string; value: string; sub?: string; icon: any; color?: string; delta?: string; trend?: 'up'|'down' }) {
-  const clr: Record<string, string> = {
-    blue:   'bg-blue-50 text-blue-600 ring-blue-100',
-    green:  'bg-green-50 text-green-600 ring-green-100',
-    red:    'bg-red-50 text-red-600 ring-red-100',
-    purple: 'bg-purple-50 text-purple-600 ring-purple-100',
-    amber:  'bg-amber-50 text-amber-600 ring-amber-100',
-    gray:   'bg-gray-50 text-gray-500 ring-gray-100',
+  const accent: Record<string, string> = {
+    blue: 'border-l-blue-500', green: 'border-l-emerald-500', red: 'border-l-red-500',
+    amber: 'border-l-amber-500', purple: 'border-l-violet-500', teal: 'border-l-teal-500',
+    gray: 'border-l-slate-300',
   }
+  const iconClr: Record<string, string> = {
+    blue: 'text-blue-500', green: 'text-emerald-500', red: 'text-red-500',
+    amber: 'text-amber-500', purple: 'text-violet-500', teal: 'text-teal-500',
+    gray: 'text-slate-400',
+  }
+  const trendCls = trend === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
   return (
-    <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ring-1 ${clr[color] ?? clr.blue}`}>
-          <Icon size={17} />
-        </div>
+    <div className={`bg-white rounded-lg border border-slate-200 border-l-[3px] ${accent[color] ?? accent.blue} p-4`}>
+      <div className="flex items-start justify-between mb-3">
+        {Icon && <Icon size={14} className={`${iconClr[color] ?? iconClr.blue} flex-shrink-0`} />}
         {delta && (
-          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trend === 'up' ? 'text-green-600' : 'text-red-500'}`}>
-            {trend === 'up' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-            {delta}
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${trendCls}`}>
+            {trend === 'up' ? '▲' : '▼'} {delta}
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 leading-none mb-0.5">{value}</p>
-      <p className="text-xs text-gray-400 font-medium">{label}</p>
-      {sub && <p className="text-[10px] text-gray-300 mt-0.5">{sub}</p>}
+      <p className="text-[26px] font-bold text-slate-900 leading-none tracking-tight font-mono mb-1.5">{value}</p>
+      <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">{label}</p>
+      {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -87,15 +87,13 @@ function KpiCard({
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-lg p-3 text-xs min-w-[160px]">
-      <p className="font-semibold text-gray-700 mb-1.5">{label}</p>
+    <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-3 text-xs min-w-[160px]">
+      <p className="font-semibold text-slate-200 mb-2 border-b border-slate-700 pb-1.5 text-[11px]">{label}</p>
       {payload.map((p: any, i: number) => (
-        <div key={i} className="flex items-center justify-between gap-4 mb-0.5">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: p.color || p.fill }} />
-            <span className="text-gray-500">{p.name}</span>
-          </div>
-          <span className="font-semibold text-gray-800">{formatBRL(Math.abs(p.value))}</span>
+        <div key={i} className="flex items-center gap-2 mb-0.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color || p.fill }} />
+          <span className="text-slate-400 flex-1 text-[10px]">{p.name}:</span>
+          <span className="font-bold text-white">{typeof p.value === 'number' ? formatBRL(p.value) : p.value}</span>
         </div>
       ))}
     </div>
@@ -232,7 +230,7 @@ export default function ProjetosDashboardPage() {
     <AppLayout>
       <Topbar title="Dashboard de Projetos" subtitle="P&L • Aportes • Despesas • Lucro" />
       <div className="p-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-white rounded-2xl animate-pulse" />)}
+        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-white rounded-lg animate-pulse" />)}
       </div>
     </AppLayout>
   )
@@ -245,10 +243,10 @@ export default function ProjetosDashboardPage() {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Tab bar */}
-          <div className="flex items-center gap-0.5 bg-white border border-black/[0.08] p-1 rounded-xl">
+          <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
             {TABS.map(t => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab === t ? 'bg-[#0f172a] text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 {t}
               </button>
             ))}
@@ -256,10 +254,10 @@ export default function ProjetosDashboardPage() {
 
           {/* Period filter — only for P&L tab */}
           {tab === 'P&L Operacional' && (
-            <div className="flex items-center gap-0.5 bg-white border border-black/[0.08] p-1 rounded-xl">
+            <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
               {PERIOD_OPTIONS.map(p => (
                 <button key={p.value} onClick={() => setPeriod(p.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                   {p.label}
                 </button>
               ))}
@@ -269,12 +267,12 @@ export default function ProjetosDashboardPage() {
           {/* Project filter */}
           <div className="flex items-center gap-1 flex-wrap">
             <button onClick={() => setProjetoFilter('todos')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${projetoFilter === 'todos' ? 'bg-[#0f172a] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${projetoFilter === 'todos' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
               Todos
             </button>
             {rawData.projetos.map((p: any) => (
               <button key={p.id} onClick={() => setProjetoFilter(p.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${projetoFilter === p.id ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${projetoFilter === p.id ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                 {p.nome}
               </button>
             ))}
@@ -301,13 +299,13 @@ export default function ProjetosDashboardPage() {
             </div>
 
             {/* Main P&L Chart */}
-            <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+            <div className="bg-white rounded-lg border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700">Receita vs. Despesas vs. Lucro</h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Período: {PERIOD_OPTIONS.find(p => p.value === period)?.label}</p>
+                  <h3 className="text-sm font-semibold text-slate-700">Receita vs. Despesas vs. Lucro</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Período: {PERIOD_OPTIONS.find(p => p.value === period)?.label}</p>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                <div className="flex items-center gap-3 text-[10px] text-slate-500">
                   <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-500" /> Receita</span>
                   <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-400" /> Despesas</span>
                   <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-0.5 bg-blue-500" /> Lucro</span>
@@ -330,8 +328,8 @@ export default function ProjetosDashboardPage() {
             </div>
 
             {/* Aportes por período */}
-            <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Aportes (Investimento) por Período</h3>
+            <div className="bg-white rounded-lg border border-slate-200 p-5">
+              <h3 className="text-sm font-semibold text-slate-700 mb-4">Aportes (Investimento) por Período</h3>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={timeData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -350,8 +348,8 @@ export default function ProjetosDashboardPage() {
                 { label: 'Despesas Operacionais', value: totalDespesas, color: 'text-red-500', bg: 'bg-red-50' },
                 { label: 'Outras Saídas', value: totalSaidas, color: 'text-orange-500', bg: 'bg-orange-50' },
               ].map(item => (
-                <div key={item.label} className={`${item.bg} rounded-2xl border border-black/[0.05] p-5`}>
-                  <p className="text-xs text-gray-500 mb-1">{item.label}</p>
+                <div key={item.label} className={`${item.bg} rounded-lg border border-slate-200 p-5`}>
+                  <p className="text-xs text-slate-500 mb-1">{item.label}</p>
                   <p className={`text-2xl font-bold ${item.color}`}>{formatBRL(item.value)}</p>
                 </div>
               ))}
@@ -371,10 +369,10 @@ export default function ProjetosDashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Pie composição */}
-              <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Composição dos Aportes</h3>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Composição dos Aportes</h3>
                 {pieAportes.length === 0 ? (
-                  <p className="text-xs text-gray-300 text-center py-10">Nenhum aporte registrado</p>
+                  <p className="text-xs text-slate-400 text-center py-10">Nenhum aporte registrado</p>
                 ) : (
                   <div className="flex flex-col items-center gap-4">
                     <ResponsiveContainer width="100%" height={160}>
@@ -390,9 +388,9 @@ export default function ProjetosDashboardPage() {
                         <div key={e.name} className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ background: e.color }} />
-                            <span className="text-gray-600">{e.name}</span>
+                            <span className="text-slate-600">{e.name}</span>
                           </div>
-                          <span className="font-semibold text-gray-900">{formatShort(e.value)} <span className="text-gray-400">({totalAportesAll > 0 ? (e.value/totalAportesAll*100).toFixed(0) : 0}%)</span></span>
+                          <span className="font-semibold text-slate-900">{formatShort(e.value)} <span className="text-slate-400">({totalAportesAll > 0 ? (e.value/totalAportesAll*100).toFixed(0) : 0}%)</span></span>
                         </div>
                       ))}
                     </div>
@@ -401,10 +399,10 @@ export default function ProjetosDashboardPage() {
               </div>
 
               {/* Aportes por projeto */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Aportes por Projeto — Próprio vs. Sócios</h3>
+              <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 p-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Aportes por Projeto — Próprio vs. Sócios</h3>
                 {projetosPL.filter((p: any) => p.aportes > 0).length === 0 ? (
-                  <p className="text-xs text-gray-300 text-center py-10">Nenhum aporte registrado</p>
+                  <p className="text-xs text-slate-400 text-center py-10">Nenhum aporte registrado</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={projetosPL.filter((p: any) => p.aportes > 0)} barSize={16}>
@@ -422,39 +420,39 @@ export default function ProjetosDashboardPage() {
             </div>
 
             {/* Participation table */}
-            <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700">Participação por Projeto</h3>
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-700">Participação por Projeto</h3>
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Projeto</th>
-                    <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Status</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium text-gray-500">Capital Próprio</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium text-gray-500">Sócios</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium text-gray-500">Total</th>
-                    <th className="px-5 py-3 text-xs font-medium text-gray-500 min-w-[140px]">Minha Participação</th>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Projeto</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Status</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Capital Próprio</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Sócios</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Total</th>
+                    <th className="px-5 py-3 text-xs font-medium text-slate-500 min-w-[140px]">Minha Participação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projetosPL.map((p: any, i: number) => {
                     const myPct = p.aportes > 0 ? (p.meuAp / p.aportes * 100) : 100
                     return (
-                      <tr key={p.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${i === projetosPL.length - 1 ? 'border-b-0' : ''}`}>
-                        <td className="px-5 py-3 font-medium text-gray-900 text-xs">{p.nome}</td>
+                      <tr key={p.id} className={`border-b border-slate-100 hover:bg-slate-50/50 ${i === projetosPL.length - 1 ? 'border-b-0' : ''}`}>
+                        <td className="px-5 py-3 font-medium text-slate-900 text-xs">{p.nome}</td>
                         <td className="px-5 py-3">
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${p.status === 'ativo' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{p.status || '—'}</span>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${p.status === 'ativo' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{p.status || '—'}</span>
                         </td>
                         <td className="px-5 py-3 text-right text-xs font-semibold text-blue-700">{formatBRL(p.meuAp)}</td>
                         <td className="px-5 py-3 text-right text-xs font-semibold text-purple-700">{formatBRL(p.socioAp)}</td>
-                        <td className="px-5 py-3 text-right text-xs font-bold text-gray-900">{formatBRL(p.aportes)}</td>
+                        <td className="px-5 py-3 text-right text-xs font-bold text-slate-900">{formatBRL(p.aportes)}</td>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
                               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${myPct}%` }} />
                             </div>
-                            <span className="text-xs font-semibold text-gray-700 w-8 text-right">{myPct.toFixed(0)}%</span>
+                            <span className="text-xs font-semibold text-slate-700 w-8 text-right">{myPct.toFixed(0)}%</span>
                           </div>
                         </td>
                       </tr>
@@ -484,8 +482,8 @@ export default function ProjetosDashboardPage() {
 
             {/* Horizontal grouped bar */}
             {projetosPL.length > 0 && (
-              <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Aportes vs. Despesas Operacionais por Projeto</h3>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Aportes vs. Despesas Operacionais por Projeto</h3>
                 <ResponsiveContainer width="100%" height={Math.max(220, projetosPL.length * 52)}>
                   <BarChart data={projetosPL} layout="vertical" barSize={13} margin={{ right: 80, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
@@ -503,36 +501,36 @@ export default function ProjetosDashboardPage() {
             )}
 
             {/* P&L table */}
-            <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700">P&L Completo por Projeto</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Lucro Teórico = Valor Total Meta − Aportes</p>
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-700">P&L Completo por Projeto</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Lucro Teórico = Valor Total Meta − Aportes</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Projeto</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Aportes</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Desp. Op.</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Meta</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Lucro Teórico</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">ROI</th>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Projeto</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Status</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Aportes</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Desp. Op.</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Meta</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Lucro Teórico</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">ROI</th>
                     </tr>
                   </thead>
                   <tbody>
                     {projetosPL.length === 0 ? (
-                      <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-300">Nenhum projeto cadastrado</td></tr>
+                      <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-400">Nenhum projeto cadastrado</td></tr>
                     ) : projetosPL.map((p: any, i: number) => (
-                      <tr key={p.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${i === projetosPL.length - 1 ? 'border-b-0' : ''}`}>
-                        <td className="px-5 py-3 font-medium text-gray-900 text-xs">{p.nome}</td>
+                      <tr key={p.id} className={`border-b border-slate-100 hover:bg-slate-50/50 ${i === projetosPL.length - 1 ? 'border-b-0' : ''}`}>
+                        <td className="px-5 py-3 font-medium text-slate-900 text-xs">{p.nome}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${p.status === 'ativo' ? 'bg-green-50 text-green-700 border-green-200' : p.status === 'pausado' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{p.status || '—'}</span>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${p.status === 'ativo' ? 'bg-green-50 text-green-700 border-green-200' : p.status === 'pausado' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{p.status || '—'}</span>
                         </td>
                         <td className="px-4 py-3 text-right text-xs font-semibold text-purple-700">{formatBRL(p.aportes)}</td>
                         <td className="px-4 py-3 text-right text-xs font-semibold text-red-500">{p.despesas_op > 0 ? formatBRL(p.despesas_op) : '—'}</td>
-                        <td className="px-4 py-3 text-right text-xs text-gray-500">{p.valor_total > 0 ? formatBRL(p.valor_total) : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-500">{p.valor_total > 0 ? formatBRL(p.valor_total) : '—'}</td>
                         <td className="px-4 py-3 text-right text-xs font-semibold">
                           {p.valor_total > 0 ? <span className={p.lucro_teorico >= 0 ? 'text-green-600' : 'text-red-500'}>{p.lucro_teorico >= 0 ? '+' : ''}{formatBRL(p.lucro_teorico)}</span> : '—'}
                         </td>
@@ -544,11 +542,11 @@ export default function ProjetosDashboardPage() {
                   </tbody>
                   {projetosPL.length > 0 && (
                     <tfoot>
-                      <tr className="border-t-2 border-gray-200 bg-gray-50">
-                        <td className="px-5 py-3 text-xs font-bold text-gray-700" colSpan={2}>Total</td>
+                      <tr className="border-t-2 border-slate-200 bg-slate-50">
+                        <td className="px-5 py-3 text-xs font-bold text-slate-700" colSpan={2}>Total</td>
                         <td className="px-4 py-3 text-right text-xs font-bold text-purple-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.aportes, 0))}</td>
                         <td className="px-4 py-3 text-right text-xs font-bold text-red-500">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.despesas_op, 0))}</td>
-                        <td className="px-4 py-3 text-right text-xs font-bold text-gray-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.valor_total, 0))}</td>
+                        <td className="px-4 py-3 text-right text-xs font-bold text-slate-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.valor_total, 0))}</td>
                         <td className="px-4 py-3 text-right text-xs font-bold">
                           <span className={projetosPL.reduce((s: number, p: any) => s + p.lucro_teorico, 0) >= 0 ? 'text-green-600' : 'text-red-500'}>
                             {formatBRL(projetosPL.reduce((s: number, p: any) => s + p.lucro_teorico, 0))}

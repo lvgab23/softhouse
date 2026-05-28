@@ -45,53 +45,57 @@ const MODULES: { key: ModuleKey; label: string; color: string }[] = [
 
 // ── Shared UI ──────────────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, icon: Icon, color = 'blue', trend, delta }: any) {
-  const cfg: Record<string, string> = {
-    blue:   'bg-blue-50 text-blue-600 ring-blue-100',
-    green:  'bg-green-50 text-green-600 ring-green-100',
-    red:    'bg-red-50 text-red-600 ring-red-100',
-    amber:  'bg-amber-50 text-amber-600 ring-amber-100',
-    purple: 'bg-purple-50 text-purple-600 ring-purple-100',
-    cyan:   'bg-cyan-50 text-cyan-600 ring-cyan-100',
-    slate:  'bg-slate-50 text-slate-600 ring-slate-100',
+  const accent: Record<string, string> = {
+    blue: 'border-l-blue-500', green: 'border-l-emerald-500', red: 'border-l-red-500',
+    amber: 'border-l-amber-500', purple: 'border-l-violet-500', teal: 'border-l-teal-500',
+    slate: 'border-l-slate-400', cyan: 'border-l-cyan-500', gray: 'border-l-slate-300',
   }
+  const iconClr: Record<string, string> = {
+    blue: 'text-blue-500', green: 'text-emerald-500', red: 'text-red-500',
+    amber: 'text-amber-500', purple: 'text-violet-500', teal: 'text-teal-500',
+    slate: 'text-slate-400', cyan: 'text-cyan-500', gray: 'text-slate-400',
+  }
+  const trendCls = trend === 'up' ? 'bg-emerald-50 text-emerald-700' : trend === 'down' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'
   return (
-    <div className="bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ring-1 ${cfg[color] ?? cfg.blue}`}>
-          <Icon size={17} />
-        </div>
+    <div className={`bg-white rounded-lg border border-slate-200 border-l-[3px] ${accent[color] ?? accent.blue} p-4`}>
+      <div className="flex items-start justify-between mb-3">
+        {Icon && <Icon size={14} className={`${iconClr[color] ?? iconClr.blue} flex-shrink-0`} />}
         {trend && delta && (
-          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-500' : 'text-gray-400'}`}>
-            {trend === 'up' ? <ArrowUpRight size={13} /> : trend === 'down' ? <ArrowDownRight size={13} /> : null}
-            {delta}
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${trendCls}`}>
+            {trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—'} {delta}
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 leading-none mb-0.5">{value}</p>
-      <p className="text-xs text-gray-400 font-medium">{label}</p>
-      {sub && <p className="text-[10px] text-gray-300 mt-0.5">{sub}</p>}
+      <p className="text-[26px] font-bold text-slate-900 leading-none tracking-tight font-mono mb-1.5">{value}</p>
+      <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">{label}</p>
+      {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
     </div>
   )
 }
 
 function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`bg-white rounded-2xl border border-black/[0.07] p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] ${className}`}>{children}</div>
+  return <div className={`bg-white rounded-lg border border-slate-200 p-5 ${className}`}>{children}</div>
 }
 
 function PanelTitle({ title, sub }: { title: string; sub?: string }) {
-  return <div className="mb-4"><h3 className="text-sm font-semibold text-gray-800">{title}</h3>{sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}</div>
+  return (
+    <div className="mb-4 pb-3 border-b border-slate-100">
+      <h3 className="text-[10px] uppercase tracking-widest font-bold text-slate-500">{title}</h3>
+      {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+    </div>
+  )
 }
 
 const Tip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-lg p-3 text-xs min-w-[160px]">
-      <p className="font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1.5">{label}</p>
+    <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-3 text-xs min-w-[160px]">
+      <p className="font-semibold text-slate-200 mb-2 border-b border-slate-700 pb-1.5 text-[11px]">{label}</p>
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2 mb-0.5">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color || p.fill }} />
-          <span className="text-gray-500 flex-1">{p.name}:</span>
-          <span className="font-semibold">{typeof p.value === 'number' ? formatBRL(p.value) : p.value}</span>
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color || p.fill }} />
+          <span className="text-slate-400 flex-1 text-[10px]">{p.name}:</span>
+          <span className="font-bold text-white">{typeof p.value === 'number' ? formatBRL(p.value) : p.value}</span>
         </div>
       ))}
     </div>
@@ -109,17 +113,17 @@ function DonutLegend({ data, palette }: { data: { name: string; value: number }[
             <div className="flex items-center justify-between mb-0.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: palette[i % palette.length] }} />
-                <span className="text-[11px] text-gray-600 truncate">{item.name}</span>
+                <span className="text-[11px] text-slate-600 truncate">{item.name}</span>
               </div>
-              <span className="text-[11px] font-semibold text-gray-700 ml-2">{pct.toFixed(0)}%</span>
+              <span className="text-[11px] font-semibold text-slate-700 ml-2">{pct.toFixed(0)}%</span>
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: palette[i % palette.length] }} />
             </div>
           </div>
         )
       })}
-      <p className="text-[10px] text-gray-300 pt-1">Total: {formatBRL(total)}</p>
+      <p className="text-[10px] text-slate-300 pt-1">Total: {formatBRL(total)}</p>
     </div>
   )
 }
@@ -129,10 +133,10 @@ function StatusBadge({ status }: { status: string }) {
     ativo: 'bg-green-50 text-green-700 border-green-200', ativa: 'bg-green-50 text-green-700 border-green-200',
     em_execucao: 'bg-blue-50 text-blue-700 border-blue-200', concluido: 'bg-teal-50 text-teal-700 border-teal-200',
     pausado: 'bg-amber-50 text-amber-700 border-amber-200', cancelado: 'bg-red-50 text-red-700 border-red-200',
-    inativo: 'bg-gray-50 text-gray-400 border-gray-200', captacao: 'bg-purple-50 text-purple-700 border-purple-200',
+    inativo: 'bg-slate-50 text-slate-400 border-slate-200', captacao: 'bg-purple-50 text-purple-700 border-purple-200',
     vendido: 'bg-slate-50 text-slate-400 border-slate-200',
   }
-  return <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${map[status] || 'bg-gray-50 text-gray-400 border-gray-200'}`}>{status.replace(/_/g, ' ')}</span>
+  return <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${map[status] || 'bg-slate-50 text-slate-400 border-slate-200'}`}>{status.replace(/_/g, ' ')}</span>
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -367,7 +371,7 @@ export default function DashboardPage() {
       <>
         <Topbar title="Dashboard Executivo" subtitle="Visão consolidada do portfólio" />
         <div className="p-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-28 bg-white rounded-2xl border border-black/[0.07] animate-pulse" />)}
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-28 bg-white rounded-lg border border-slate-200 animate-pulse" />)}
         </div>
       </>
     )
@@ -383,18 +387,18 @@ export default function DashboardPage() {
 
         {/* ── Top controls ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1 bg-white border border-black/[0.08] p-1 rounded-xl">
+          <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === tab ? 'bg-[#0f172a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 {tab}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1 bg-white border border-black/[0.08] p-1 rounded-xl">
+          <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg">
             {PERIODS.map(p => (
               <button key={p.label} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period.label === p.label ? 'bg-[#0f172a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period.label === p.label ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 {p.label}
               </button>
             ))}
@@ -409,8 +413,8 @@ export default function DashboardPage() {
             <Panel className="!p-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <Filter className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="text-xs font-medium text-gray-500">Visualizar por:</span>
+                  <Filter className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="text-xs font-medium text-slate-500">Visualizar por:</span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {MODULES.map(m => (
@@ -418,7 +422,7 @@ export default function DashboardPage() {
                       className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
                         moduleFilter === m.key
                           ? 'text-white border-transparent shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                       }`}
                       style={moduleFilter === m.key ? { background: m.color, borderColor: m.color } : {}}>
                       {m.label}
@@ -426,7 +430,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 {itemFilter && (
-                  <button onClick={() => setItem(null)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 ml-auto">
+                  <button onClick={() => setItem(null)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 ml-auto">
                     <X className="h-3 w-3" /> Limpar seleção
                   </button>
                 )}
@@ -434,18 +438,18 @@ export default function DashboardPage() {
 
               {/* Item pills for selected module */}
               {moduleFilter !== 'todos' && moduleItems.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-2">
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide mb-2">
                     {moduleFilter === 'projetos' ? 'Projetos' : moduleFilter === 'bens' ? 'Ativos' : 'Empresas'}
                   </p>
                   <div className="flex gap-1.5 flex-wrap">
                     <button onClick={() => setItem(null)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors border ${!itemFilter ? 'bg-[#0f172a] text-white border-transparent' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors border ${!itemFilter ? 'bg-[#0f172a] text-white border-transparent' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       Todos
                     </button>
                     {moduleItems.map((item: any) => (
                       <button key={item.id} onClick={() => setItem(item.id)}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors border max-w-[180px] truncate ${itemFilter === item.id ? 'bg-[#0f172a] text-white border-transparent' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors border max-w-[180px] truncate ${itemFilter === item.id ? 'bg-[#0f172a] text-white border-transparent' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                         title={item.nome}>
                         {item.nome}
                       </button>
@@ -515,8 +519,8 @@ export default function DashboardPage() {
               <Panel className="border-l-4 border-l-blue-500">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900">{selectedItem.nome}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <h3 className="text-sm font-bold text-slate-900">{selectedItem.nome}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {moduleFilter === 'projetos' && `Projeto · ${selectedItem.status || '—'}`}
                       {moduleFilter === 'bens' && (selectedItem.categorias?.nome || BENS_TIPO[selectedItem.tipo] || 'Ativo')}
                       {moduleFilter === 'negocios' && `${selectedItem.setor || 'Negócio'} · ${selectedItem.status}`}
@@ -532,10 +536,10 @@ export default function DashboardPage() {
                     const roi = ap > 0 && vt > 0 ? ((vt - ap) / ap * 100) : 0
                     return (
                       <>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Aportes</p><p className="text-sm font-bold text-purple-700">{formatBRL(ap)}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Desp. Op.</p><p className="text-sm font-bold text-red-500">{dep > 0 ? formatBRL(dep) : '—'}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Valor Total</p><p className="text-sm font-bold text-blue-700">{vt > 0 ? formatBRL(vt) : '—'}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">ROI</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{roi !== 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Aportes</p><p className="text-sm font-bold text-purple-700">{formatBRL(ap)}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Desp. Op.</p><p className="text-sm font-bold text-red-500">{dep > 0 ? formatBRL(dep) : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Valor Total</p><p className="text-sm font-bold text-blue-700">{vt > 0 ? formatBRL(vt) : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">ROI</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{roi !== 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
                       </>
                     )
                   })()}
@@ -547,10 +551,10 @@ export default function DashboardPage() {
                     const alug       = raw.alugueis.find((a: any) => a.patrimonio_id === selectedItem.id)
                     return (
                       <>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Valor Atual</p><p className="text-sm font-bold text-blue-700">{formatBRL(valorAtual)}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Valorização</p><p className={`text-sm font-bold ${valoriz >= 0 ? 'text-green-600' : 'text-red-500'}`}>{valoriz >= 0 ? '+' : ''}{formatBRL(valoriz)}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">ROI</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{valorAq > 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Aluguel/Mês</p><p className="text-sm font-bold text-cyan-600">{alug ? formatBRL(alug.valor_aluguel) : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Valor Atual</p><p className="text-sm font-bold text-blue-700">{formatBRL(valorAtual)}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Valorização</p><p className={`text-sm font-bold ${valoriz >= 0 ? 'text-green-600' : 'text-red-500'}`}>{valoriz >= 0 ? '+' : ''}{formatBRL(valoriz)}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">ROI</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{valorAq > 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Aluguel/Mês</p><p className="text-sm font-bold text-cyan-600">{alug ? formatBRL(alug.valor_aluguel) : '—'}</p></div>
                       </>
                     )
                   })()}
@@ -560,15 +564,15 @@ export default function DashboardPage() {
                     const roi = inv > 0 ? ((ret - inv) / inv * 100) : 0
                     return (
                       <>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Investimento</p><p className="text-sm font-bold text-blue-700">{formatBRL(inv)}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Retorno</p><p className="text-sm font-bold text-green-600">{ret > 0 ? formatBRL(ret) : '—'}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">ROI Est.</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{inv > 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
-                        <div><p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Fase</p><p className="text-sm font-bold text-gray-700 capitalize">{(selectedItem.fase || '—').replace(/_/g, ' ')}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Investimento</p><p className="text-sm font-bold text-blue-700">{formatBRL(inv)}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Retorno</p><p className="text-sm font-bold text-green-600">{ret > 0 ? formatBRL(ret) : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">ROI Est.</p><p className={`text-sm font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-500'}`}>{inv > 0 ? `${roi.toFixed(1)}%` : '—'}</p></div>
+                        <div><p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Fase</p><p className="text-sm font-bold text-slate-700 capitalize">{(selectedItem.fase || '—').replace(/_/g, ' ')}</p></div>
                       </>
                     )
                   })()}
                 </div>
-                {selectedItem.descricao && <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">{selectedItem.descricao}</p>}
+                {selectedItem.descricao && <p className="text-xs text-slate-500 mt-3 pt-3 border-t border-slate-100">{selectedItem.descricao}</p>}
               </Panel>
             )}
 
@@ -581,7 +585,7 @@ export default function DashboardPage() {
                   sub="composição do portfólio"
                 />
                 {portfolioData.length === 0 ? (
-                  <div className="h-52 flex items-center justify-center text-gray-300 text-sm">Sem dados</div>
+                  <div className="h-52 flex items-center justify-center text-slate-300 text-sm">Sem dados</div>
                 ) : (
                   <div className="flex items-center gap-3">
                     <ResponsiveContainer width="45%" height={190}>
@@ -624,7 +628,7 @@ export default function DashboardPage() {
                 {/* Projetos ativos */}
                 <Panel>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-purple-500" /><h3 className="text-sm font-semibold text-gray-800">Projetos Ativos</h3></div>
+                    <div className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-purple-500" /><h3 className="text-sm font-semibold text-slate-800">Projetos Ativos</h3></div>
                     <span className="text-xs font-semibold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{raw.projetos.filter((p: any) => p.status === 'ativo').length}</span>
                   </div>
                   <div className="space-y-3">
@@ -632,27 +636,27 @@ export default function DashboardPage() {
                       const ap = raw.aportes.filter((a: any) => a.projeto_id === p.id).reduce((s: number, a: any) => s + (a.valor || 0), 0)
                       const dep = raw.despesas.filter((d: any) => d.projeto_id === p.id).reduce((s: number, d: any) => s + d.valor, 0)
                       return (
-                        <div key={p.id} className="flex items-center justify-between gap-2 pb-2 border-b border-gray-50 last:border-0 last:pb-0 cursor-pointer hover:bg-gray-50/60 -mx-1 px-1 rounded-lg transition-colors"
+                        <div key={p.id} className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-50/60 -mx-1 px-1 rounded-lg transition-colors"
                           onClick={() => { handleModule('projetos'); setItem(p.id) }}>
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-800 truncate">{p.nome}</p>
-                            <p className="text-[10px] text-gray-400">Ap: {formatShort(ap)} · Desp: {formatShort(dep)}</p>
+                            <p className="text-xs font-medium text-slate-800 truncate">{p.nome}</p>
+                            <p className="text-[10px] text-slate-400">Ap: {formatShort(ap)} · Desp: {formatShort(dep)}</p>
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md">{p.valor_total ? formatShort(p.valor_total) : '—'}</span>
-                            <ChevronRight className="h-3 w-3 text-gray-300" />
+                            <ChevronRight className="h-3 w-3 text-slate-300" />
                           </div>
                         </div>
                       )
                     })}
-                    {raw.projetos.filter((p: any) => p.status === 'ativo').length === 0 && <p className="text-xs text-gray-300 text-center py-4">Nenhum projeto ativo</p>}
+                    {raw.projetos.filter((p: any) => p.status === 'ativo').length === 0 && <p className="text-xs text-slate-300 text-center py-4">Nenhum projeto ativo</p>}
                   </div>
                 </Panel>
 
                 {/* Manutenções */}
                 <Panel>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-orange-500" /><h3 className="text-sm font-semibold text-gray-800">Manutenções Pendentes</h3></div>
+                    <div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-orange-500" /><h3 className="text-sm font-semibold text-slate-800">Manutenções Pendentes</h3></div>
                     {raw.manutencoes.filter((m: any) => m.proxima_manutencao && new Date(m.proxima_manutencao) < new Date()).length > 0 && (
                       <div className="flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
                         <AlertCircle className="h-3 w-3" />
@@ -664,21 +668,21 @@ export default function DashboardPage() {
                     {raw.manutencoes.slice(0, 5).map((m: any) => {
                       const venc = m.proxima_manutencao && new Date(m.proxima_manutencao) < new Date()
                       return (
-                        <div key={m.id} className="flex items-start justify-between gap-2 pb-2 border-b border-gray-50 last:border-0 last:pb-0">
-                          <div className="min-w-0"><p className="text-xs font-medium text-gray-700 truncate">{m.descricao}</p><p className="text-[10px] text-gray-400 truncate">{m.patrimonios?.nome}</p></div>
+                        <div key={m.id} className="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                          <div className="min-w-0"><p className="text-xs font-medium text-slate-700 truncate">{m.descricao}</p><p className="text-[10px] text-slate-400 truncate">{m.patrimonios?.nome}</p></div>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0 ${venc ? 'bg-red-50 text-red-600' : m.status === 'em_andamento' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
                             {venc ? 'Vencida' : m.status === 'em_andamento' ? 'Em andamento' : 'Pendente'}
                           </span>
                         </div>
                       )
                     })}
-                    {raw.manutencoes.length === 0 && <p className="text-xs text-gray-300 text-center py-4">Sem pendências</p>}
+                    {raw.manutencoes.length === 0 && <p className="text-xs text-slate-300 text-center py-4">Sem pendências</p>}
                   </div>
                 </Panel>
 
                 {/* P&L resumo */}
                 <Panel>
-                  <div className="flex items-center gap-2 mb-4"><Activity className="h-4 w-4 text-green-500" /><h3 className="text-sm font-semibold text-gray-800">P&L Consolidado</h3></div>
+                  <div className="flex items-center gap-2 mb-4"><Activity className="h-4 w-4 text-green-500" /><h3 className="text-sm font-semibold text-slate-800">P&L Consolidado</h3></div>
                   <div className="space-y-2.5">
                     {[
                       { label: 'Receitas (período)',   value: metrics.receita,   pos: true  },
@@ -687,16 +691,16 @@ export default function DashboardPage() {
                       { label: 'Aluguel/Mês',         value: base.aluguelMes,   pos: true  },
                     ].map(r => (
                       <div key={r.label} className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{r.label}</span>
+                        <span className="text-xs text-slate-500">{r.label}</span>
                         <span className={`text-xs font-semibold ${r.pos ? 'text-green-600' : 'text-red-500'}`}>{r.pos ? '' : '−'}{formatBRL(r.value)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
-                      <span className="text-xs font-bold text-gray-700">Resultado Líquido</span>
+                    <div className="flex justify-between border-t border-slate-100 pt-2 mt-1">
+                      <span className="text-xs font-bold text-slate-700">Resultado Líquido</span>
                       <span className={`text-sm font-bold ${metrics.lucro >= 0 ? 'text-green-600' : 'text-red-500'}`}>{metrics.lucro >= 0 ? '+' : ''}{formatBRL(metrics.lucro)}</span>
                     </div>
-                    <div className="flex justify-between"><span className="text-xs text-gray-400">Total Aportes</span><span className="text-xs font-semibold text-purple-600">{formatBRL(base.totalAportes)}</span></div>
-                    <div className="flex justify-between"><span className="text-xs text-gray-400">Carteira Bens</span><span className="text-xs font-semibold text-blue-600">{formatBRL(base.totalImoveis + base.totalBens)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs text-slate-400">Total Aportes</span><span className="text-xs font-semibold text-purple-600">{formatBRL(base.totalAportes)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs text-slate-400">Carteira Bens</span><span className="text-xs font-semibold text-blue-600">{formatBRL(base.totalImoveis + base.totalBens)}</span></div>
                   </div>
                 </Panel>
               </div>
@@ -749,39 +753,39 @@ export default function DashboardPage() {
               </Panel>
             )}
 
-            <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-800">P&L por Projeto</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Aportes = implantação · Desp. Op. = operação · Lucro = Valor Total − Aportes</p>
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-800">P&L por Projeto</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Aportes = implantação · Desp. Op. = operação · Lucro = Valor Total − Aportes</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b border-gray-100 bg-gray-50/50">
+                  <thead><tr className="border-b border-slate-100 bg-slate-50">
                     {['Projeto', 'Status', 'Aportes', 'Desp. Op.', 'Valor Total', 'Lucro', 'ROI'].map(h => (
-                      <th key={h} className={`py-3 px-4 text-xs font-medium text-gray-500 ${h === 'Projeto' ? 'text-left pl-5' : 'text-right'}`}>{h}</th>
+                      <th key={h} className={`py-3 px-4 text-xs font-medium text-slate-500 ${h === 'Projeto' ? 'text-left pl-5' : 'text-right'}`}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
                     {projetosPL.length === 0 ? (
-                      <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-gray-300">Nenhum projeto</td></tr>
+                      <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-slate-300">Nenhum projeto</td></tr>
                     ) : projetosPL.map((p: any, i: number) => (
-                      <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                        <td className="px-5 py-3 text-xs font-medium text-gray-900">{p.nome}</td>
+                      <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="px-5 py-3 text-xs font-medium text-slate-900">{p.nome}</td>
                         <td className="px-4 py-3"><StatusBadge status={p.status || 'inativo'} /></td>
                         <td className="px-4 py-3 text-right text-xs font-semibold text-purple-700">{formatBRL(p.aportes)}</td>
                         <td className="px-4 py-3 text-right text-xs font-semibold text-red-500">{p.despesas > 0 ? formatBRL(p.despesas) : '—'}</td>
-                        <td className="px-4 py-3 text-right text-xs text-gray-600">{p.valorTotal > 0 ? formatBRL(p.valorTotal) : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-600">{p.valorTotal > 0 ? formatBRL(p.valorTotal) : '—'}</td>
                         <td className="px-4 py-3 text-right text-xs font-semibold">{p.lucro !== 0 ? <span className={p.lucro >= 0 ? 'text-green-600' : 'text-red-500'}>{p.lucro >= 0 ? '+' : ''}{formatBRL(p.lucro)}</span> : '—'}</td>
                         <td className="px-4 py-3 text-right text-xs font-semibold">{p.roi !== 0 ? <span className={p.roi >= 0 ? 'text-green-600' : 'text-red-500'}>{p.roi >= 0 ? '+' : ''}{p.roi.toFixed(1)}%</span> : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                   {projetosPL.length > 0 && (
-                    <tfoot><tr className="border-t-2 border-gray-200 bg-gray-50">
-                      <td className="px-5 py-3 text-xs font-bold text-gray-700">Total</td><td />
+                    <tfoot><tr className="border-t-2 border-slate-200 bg-slate-50">
+                      <td className="px-5 py-3 text-xs font-bold text-slate-700">Total</td><td />
                       <td className="px-4 py-3 text-right text-xs font-bold text-purple-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.aportes, 0))}</td>
                       <td className="px-4 py-3 text-right text-xs font-bold text-red-500">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.despesas, 0))}</td>
-                      <td className="px-4 py-3 text-right text-xs font-bold text-gray-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.valorTotal, 0))}</td>
+                      <td className="px-4 py-3 text-right text-xs font-bold text-slate-700">{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.valorTotal, 0))}</td>
                       <td className="px-4 py-3 text-right text-xs font-bold"><span className={projetosPL.reduce((s: number, p: any) => s + p.lucro, 0) >= 0 ? 'text-green-600' : 'text-red-500'}>{formatBRL(projetosPL.reduce((s: number, p: any) => s + p.lucro, 0))}</span></td>
                       <td />
                     </tr></tfoot>
@@ -810,7 +814,7 @@ export default function DashboardPage() {
               <Panel>
                 <PanelTitle title="Portfólio por Categoria" sub="distribuição dos ativos" />
                 {portfolioData.length === 0 ? (
-                  <div className="h-52 flex items-center justify-center text-gray-300 text-sm">Sem dados</div>
+                  <div className="h-52 flex items-center justify-center text-slate-300 text-sm">Sem dados</div>
                 ) : (
                   <div className="flex items-center gap-3">
                     <ResponsiveContainer width="45%" height={190}>
@@ -836,7 +840,7 @@ export default function DashboardPage() {
                     { name: 'Sócio',       value: base.imAtivos.reduce((s: number, p: any) => s + (p.socio_aquisicao_valor || 0), 0) },
                   ].filter(x => x.value > 0)
                   const aqColors = [C.green, C.blue, C.amber, C.purple]
-                  if (!aq.length) return <div className="h-52 flex items-center justify-center text-gray-300 text-sm">Sem dados de aquisição</div>
+                  if (!aq.length) return <div className="h-52 flex items-center justify-center text-slate-300 text-sm">Sem dados de aquisição</div>
                   return (
                     <div className="flex items-center gap-3">
                       <ResponsiveContainer width="45%" height={190}>
@@ -854,25 +858,25 @@ export default function DashboardPage() {
               </Panel>
             </div>
 
-            <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <div className="px-5 py-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-800">Ativos Imóveis</h3></div>
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-800">Ativos Imóveis</h3></div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b border-gray-100 bg-gray-50/50">
+                  <thead><tr className="border-b border-slate-100 bg-slate-50">
                     {['Imóvel', 'Categoria', 'Aquisição', 'Valor Atual', 'Valorização', 'ROI', 'Status'].map(h => (
-                      <th key={h} className={`py-3 px-4 text-xs font-medium text-gray-500 ${h === 'Imóvel' ? 'text-left pl-5' : 'text-right last:text-left'}`}>{h}</th>
+                      <th key={h} className={`py-3 px-4 text-xs font-medium text-slate-500 ${h === 'Imóvel' ? 'text-left pl-5' : 'text-right last:text-left'}`}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
-                    {base.imAtivos.length === 0 ? <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-gray-300">Nenhum imóvel</td></tr>
+                    {base.imAtivos.length === 0 ? <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-slate-300">Nenhum imóvel</td></tr>
                     : base.imAtivos.map((p: any, i: number) => {
                       const val = (p.valor_atual || 0) - (p.valor_aquisicao || 0)
                       const roi = p.valor_aquisicao ? (val / p.valor_aquisicao * 100) : 0
                       return (
-                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="px-5 py-3 text-xs font-medium text-gray-900">{p.nome}</td>
-                          <td className="px-4 py-3 text-right text-xs text-gray-500">{p.categorias?.nome || '—'}</td>
-                          <td className="px-4 py-3 text-right text-xs text-gray-600">{p.valor_aquisicao ? formatBRL(p.valor_aquisicao) : '—'}</td>
+                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-5 py-3 text-xs font-medium text-slate-900">{p.nome}</td>
+                          <td className="px-4 py-3 text-right text-xs text-slate-500">{p.categorias?.nome || '—'}</td>
+                          <td className="px-4 py-3 text-right text-xs text-slate-600">{p.valor_aquisicao ? formatBRL(p.valor_aquisicao) : '—'}</td>
                           <td className="px-4 py-3 text-right text-xs font-semibold text-blue-700">{p.valor_atual ? formatBRL(p.valor_atual) : '—'}</td>
                           <td className="px-4 py-3 text-right text-xs font-semibold"><span className={val >= 0 ? 'text-green-600' : 'text-red-500'}>{val >= 0 ? '+' : ''}{formatBRL(val)}</span></td>
                           <td className="px-4 py-3 text-right text-xs font-semibold">{p.valor_aquisicao ? <span className={roi >= 0 ? 'text-green-600' : 'text-red-500'}>{roi >= 0 ? '+' : ''}{roi.toFixed(1)}%</span> : '—'}</td>
@@ -904,7 +908,7 @@ export default function DashboardPage() {
                   const faseMap: Record<string, number> = {}
                   raw.empresas.forEach((e: any) => { const f = e.fase || 'outros'; faseMap[f] = (faseMap[f] || 0) + 1 })
                   const data = Object.entries(faseMap).map(([name, value]) => ({ name, value }))
-                  if (!data.length) return <div className="h-52 flex items-center justify-center text-gray-300 text-sm">Sem dados</div>
+                  if (!data.length) return <div className="h-52 flex items-center justify-center text-slate-300 text-sm">Sem dados</div>
                   return (
                     <div className="flex items-center gap-3">
                       <ResponsiveContainer width="50%" height={180}>
@@ -915,8 +919,8 @@ export default function DashboardPage() {
                       <div className="flex-1 space-y-2">
                         {data.map((d, i) => (
                           <div key={d.name} className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} /><span className="text-[11px] text-gray-600 capitalize">{d.name.replace(/_/g, ' ')}</span></div>
-                            <span className="text-[11px] font-semibold text-gray-800">{d.value}</span>
+                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} /><span className="text-[11px] text-slate-600 capitalize">{d.name.replace(/_/g, ' ')}</span></div>
+                            <span className="text-[11px] font-semibold text-slate-800">{d.value}</span>
                           </div>
                         ))}
                       </div>
@@ -927,7 +931,7 @@ export default function DashboardPage() {
 
               <Panel className="lg:col-span-3">
                 <PanelTitle title="Investimento × Retorno por Empresa" />
-                {raw.empresas.length === 0 ? <div className="h-52 flex items-center justify-center text-gray-300 text-sm">Nenhuma empresa</div> : (
+                {raw.empresas.length === 0 ? <div className="h-52 flex items-center justify-center text-slate-300 text-sm">Nenhuma empresa</div> : (
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={raw.empresas.slice(0, 8).map((e: any) => ({ nome: e.nome.length > 15 ? e.nome.slice(0, 15) + '…' : e.nome, investimento: e.valor_investimento || 0, retorno: e.valor_retorno || 0 }))} layout="vertical" barSize={12} margin={{ top: 0, right: 80, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
@@ -943,23 +947,23 @@ export default function DashboardPage() {
               </Panel>
             </div>
 
-            <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-              <div className="px-5 py-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-800">Portfólio de Negócios</h3></div>
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-800">Portfólio de Negócios</h3></div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b border-gray-100 bg-gray-50/50">
+                  <thead><tr className="border-b border-slate-100 bg-slate-50">
                     {['Empresa', 'Setor', 'Fase', 'Status', 'Investimento', 'Retorno', 'ROI'].map(h => (
-                      <th key={h} className={`py-3 px-4 text-xs font-medium text-gray-500 ${h === 'Empresa' ? 'text-left pl-5' : 'text-right'}`}>{h}</th>
+                      <th key={h} className={`py-3 px-4 text-xs font-medium text-slate-500 ${h === 'Empresa' ? 'text-left pl-5' : 'text-right'}`}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
-                    {raw.empresas.length === 0 ? <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-gray-300">Nenhuma empresa</td></tr>
+                    {raw.empresas.length === 0 ? <tr><td colSpan={7} className="px-5 py-8 text-center text-xs text-slate-300">Nenhuma empresa</td></tr>
                     : raw.empresas.map((e: any, i: number) => {
                       const roi = e.valor_investimento && e.valor_retorno ? ((e.valor_retorno - e.valor_investimento) / e.valor_investimento * 100) : null
                       return (
-                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="px-5 py-3 text-xs font-medium text-gray-900">{e.nome}</td>
-                          <td className="px-4 py-3 text-right text-xs text-gray-500">{e.setor || '—'}</td>
+                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
+                          <td className="px-5 py-3 text-xs font-medium text-slate-900">{e.nome}</td>
+                          <td className="px-4 py-3 text-right text-xs text-slate-500">{e.setor || '—'}</td>
                           <td className="px-4 py-3 text-right"><StatusBadge status={e.fase || 'outros'} /></td>
                           <td className="px-4 py-3 text-right"><StatusBadge status={e.status || 'inativa'} /></td>
                           <td className="px-4 py-3 text-right text-xs font-semibold text-blue-700">{e.valor_investimento ? formatBRL(e.valor_investimento) : '—'}</td>

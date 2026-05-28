@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Users, Plus, Copy, Check, Trash2, Shield, Eye, Edit3 } from 'lucide-react'
+import { Users, Plus, Copy, Check, Trash2, Shield, Eye, Edit3, Link2, KeyRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
 import { Badge } from '@/components/ui/badge'
@@ -81,12 +81,16 @@ export default function ColaboradoresPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Form state
+  const [formMode, setFormMode]   = useState<'senha' | 'convite'>('senha')
   const [formNome, setFormNome]   = useState('')
   const [formEmail, setFormEmail] = useState('')
+  const [formSenha, setFormSenha] = useState('')
   const [formNivel, setFormNivel] = useState('editor')
   const [formPerms, setFormPerms] = useState<Record<string, boolean>>(NIVEL_PRESETS.editor)
 
   const fetchData = useCallback(async () => {
+    // Garante que a migration de colaboradores foi executada
+    await fetch('/api/admin/migrate-colaboradores', { method: 'POST' }).catch(() => {})
     const supabase = createClient()
     const { data } = await (supabase as any)
       .from('colaboradores')
@@ -102,8 +106,10 @@ export default function ColaboradoresPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   function openModal() {
+    setFormMode('senha')
     setFormNome('')
     setFormEmail('')
+    setFormSenha('')
     setFormNivel('editor')
     setFormPerms(NIVEL_PRESETS.editor)
     setShowModal(true)
@@ -127,28 +133,51 @@ export default function ColaboradoresPage() {
 
   async function handleSave() {
     if (!formEmail.trim()) { toast.error('Informe o e-mail do colaborador'); return }
+    if (formMode === 'senha' && formSenha.length < 6) { toast.error('Senha deve ter ao menos 6 caracteres'); return }
     setSaving(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { toast.error('Não autenticado'); setSaving(false); return }
 
-    const payload = {
-      owner_user_id: user.id,
-      user_id: user.id,
-      nome: formNome.trim() || null,
-      email: formEmail.trim().toLowerCase(),
-      nivel: formNivel,
-      status: 'pendente',
-      permissoes: formPerms,
+    if (formMode === 'senha') {
+      const res = await fetch('/api/admin/create-colaborador', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formEmail.trim().toLowerCase(),
+          password: formSenha,
+          nome: formNome.trim() || null,
+          nivel: formNivel,
+          permissoes: formPerms,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(`Erro ao criar colaborador: ${data.error}`)
+        setSaving(false)
+        return
+      }
+      toast.success('Colaborador criado! Compartilhe o e-mail e a senha temporária com ele.')
+    } else {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { toast.error('Não autenticado'); setSaving(false); return }
+
+      const payload = {
+        owner_id: user.id,
+        owner_user_id: user.id,
+        nome: formNome.trim() || null,
+        email: formEmail.trim().toLowerCase(),
+        nivel: formNivel,
+        status: 'pendente',
+        permissoes: formPerms,
+      }
+      const { error } = await (supabase as any).from('colaboradores').insert(payload)
+      if (error) {
+        toast.error(`Erro ao convidar: ${error.message}`)
+        setSaving(false)
+        return
+      }
+      toast.success('Colaborador convidado! Copie o link de convite na lista.')
     }
 
-    const { error } = await (supabase as any).from('colaboradores').insert(payload)
-    if (error) {
-      toast.error(`Erro ao convidar: ${error.message}`)
-      setSaving(false)
-      return
-    }
-    toast.success('Colaborador convidado com sucesso!')
     setSaving(false)
     setShowModal(false)
     fetchData()
@@ -309,11 +338,35 @@ export default function ColaboradoresPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button onClick={handleSave} loading={saving}>Gerar Convite</Button>
+            <Button onClick={handleSave} loading={saving}>
+              {formMode === 'senha' ? 'Criar Colaborador' : 'Gerar Convite'}
+            </Button>
           </>
         }
       >
         <div className="space-y-5">
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+            {([
+              { key: 'senha',   icon: KeyRound, label: 'Criar com senha',   desc: 'Você define a senha temporária' },
+              { key: 'convite', icon: Link2,    label: 'Link de convite',    desc: 'Colaborador cria a própria conta' },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setFormMode(opt.key)}
+                className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-md text-xs font-medium transition-all ${
+                  formMode === opt.key
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <opt.icon className="h-4 w-4" />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* Name + Email */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -336,6 +389,21 @@ export default function ColaboradoresPage() {
               />
             </div>
           </div>
+
+          {/* Senha temporária (modo senha) */}
+          {formMode === 'senha' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Senha temporária <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 font-mono"
+                placeholder="mínimo 6 caracteres"
+                value={formSenha}
+                onChange={e => setFormSenha(e.target.value)}
+              />
+              <p className="text-[10px] text-gray-400">O colaborador será obrigado a trocar no primeiro acesso.</p>
+            </div>
+          )}
 
           {/* Nivel presets */}
           <div className="space-y-2">
@@ -388,7 +456,9 @@ export default function ColaboradoresPage() {
 
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs text-amber-700">
-              Um link de convite será gerado. Copie e envie para o colaborador — ele poderá criar uma conta e acessar apenas o que foi permitido.
+              {formMode === 'senha'
+                ? 'A conta será criada agora. Compartilhe o e-mail e a senha temporária com o colaborador — ele será obrigado a trocar a senha no primeiro acesso.'
+                : 'Um link de convite será gerado. Copie e envie para o colaborador — ele poderá criar uma conta e acessar apenas o que foi permitido.'}
             </p>
           </div>
         </div>

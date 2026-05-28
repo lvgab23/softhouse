@@ -28,7 +28,10 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/api/') && !pathname.startsWith('/setup')) {
+  const publicPaths = ['/login', '/api/', '/setup', '/convite', '/auth/', '/primeiro-acesso']
+  const isPublic = publicPaths.some(p => pathname.startsWith(p))
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -36,7 +39,14 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = user.user_metadata?.primeiro_acesso ? '/primeiro-acesso' : '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // Força troca de senha no primeiro acesso
+  if (user && user.user_metadata?.primeiro_acesso && pathname !== '/primeiro-acesso') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/primeiro-acesso'
     return NextResponse.redirect(url)
   }
 

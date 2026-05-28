@@ -16,7 +16,8 @@ export const formatShort = (value: number) => {
 
 export const formatDate = (date: string | null | undefined) => {
   if (!date) return '—'
-  const d = new Date(date + 'T00:00:00')
+  const d = new Date(date.includes('T') ? date : date + 'T00:00:00')
+  if (isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('pt-BR')
 }
 
