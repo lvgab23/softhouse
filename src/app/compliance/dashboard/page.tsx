@@ -144,8 +144,8 @@ export default function ComplianceDashboard() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {checks.slice(0, 10).map(c => (
-                  <div key={c.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors group relative">
+                {checks.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 px-5 py-3.5 hover:bg-gray-50 transition-colors group">
                     <Link href={`/compliance/resultado/${c.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -181,10 +181,10 @@ export default function ComplianceDashboard() {
                       onClick={e => handleDelete(e, c.id)}
                       disabled={deleting === c.id}
                       title="Excluir consulta"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0 disabled:opacity-50"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0 disabled:opacity-50 transition-colors"
                     >
                       {deleting === c.id
-                        ? <Clock className="h-4 w-4 animate-spin" />
+                        ? <Clock className="h-4 w-4 animate-spin text-red-400" />
                         : <Trash2 className="h-4 w-4" />
                       }
                     </button>
