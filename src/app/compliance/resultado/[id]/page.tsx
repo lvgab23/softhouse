@@ -68,7 +68,7 @@ const CAT_CONFIG: Record<string, { label: string; icon: any }> = {
   MIDIA: { label: 'Mídia Negativa', icon: Globe },
 }
 
-const TABS = ['Todos', 'JUDICIAL', 'CRIMINAL', 'CADASTRAL', 'TRABALHISTA', 'SANCAO', 'FINANCEIRO', 'AMBIENTAL', 'MIDIA']
+const TABS = ['Todos', 'JUDICIAL', 'CRIMINAL', 'CADASTRAL', 'TRABALHISTA', 'SANCAO', 'FINANCEIRO', 'AMBIENTAL', 'MIDIA', 'NOTICIAS']
 
 function gerarAnalise(data: CheckDetail): string[] {
   const f = data.findings
@@ -203,12 +203,14 @@ export default function ResultadoPage() {
     setErroIA('')
     try {
       const res = await fetch(`/api/compliance/analisar/${id}`, { method: 'POST' })
+      // Clone antes de tentar JSON — body só pode ser lido uma vez
+      const resClone = res.clone()
       let json: any
       try {
         json = await res.json()
       } catch {
-        const text = await res.text().catch(() => '')
-        throw new Error(text?.substring(0, 200) || `Erro ${res.status} — tente novamente`)
+        const text = await resClone.text().catch(() => '')
+        throw new Error(text?.substring(0, 300) || `Erro ${res.status} — tente novamente`)
       }
       if (!res.ok) throw new Error(json?.error || `Erro ${res.status}`)
       setAnaliseIA(json.analise)
@@ -217,6 +219,95 @@ export default function ResultadoPage() {
     } finally {
       setLoadingIA(false)
     }
+  }
+
+  function downloadRelatorioIA() {
+    if (!analiseIA || !data) return
+    const nome = data.nome || data.documento
+    const doc = data.tipo === 'CPF'
+      ? data.documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+      : data.documento.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+
+    const linhas: string[] = [
+      `RELATÓRIO DE COMPLIANCE — ANÁLISE COM INTELIGÊNCIA ARTIFICIAL`,
+      `${'='.repeat(65)}`,
+      ``,
+      `Analisado: ${nome}`,
+      `Documento: ${doc} (${data.tipo})`,
+      `Data da análise: ${formatDate(data.created_at)}`,
+      ``,
+      `SCORE IA: ${analiseIA.score_ia}/100 — NÍVEL: ${analiseIA.nivel_risco}`,
+      ``,
+      `${'─'.repeat(65)}`,
+      `RESUMO EXECUTIVO`,
+      `${'─'.repeat(65)}`,
+      analiseIA.resumo_executivo || '',
+      ``,
+    ]
+
+    if (analiseIA.processos_analise?.length > 0) {
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(`PROCESSOS JUDICIAIS — ANÁLISE DETALHADA (${analiseIA.processos_analise.length})`)
+      linhas.push(`${'─'.repeat(65)}`)
+      analiseIA.processos_analise.forEach((p: any, i: number) => {
+        linhas.push(``)
+        linhas.push(`[${i + 1}] ${p.titulo || ''}`)
+        linhas.push(`    Nº: ${p.numero || 'N/I'} | Tribunal: ${p.tribunal || 'N/I'}`)
+        linhas.push(`    Polo: ${p.polo || 'N/I'} — ${p.polo_descricao || ''}`)
+        linhas.push(`    Status: ${p.status || 'N/I'} | Natureza: ${p.natureza || 'N/I'}`)
+        linhas.push(`    Impacto: ${p.impacto_compliance || 'N/I'}`)
+        if (p.do_que_se_trata) linhas.push(`    O que é: ${p.do_que_se_trata}`)
+        if (p.possiveis_implicacoes) linhas.push(`    Implicações: ${p.possiveis_implicacoes}`)
+        if (p.movimentacoes) linhas.push(`    Movimentações: ${p.movimentacoes}`)
+      })
+      linhas.push(``)
+    }
+
+    if (analiseIA.analise_sancoes) {
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(`SANÇÕES E IMPEDIMENTOS`)
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(analiseIA.analise_sancoes)
+      linhas.push(``)
+    }
+
+    if (analiseIA.analise_financeira) {
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(`SITUAÇÃO FINANCEIRA`)
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(analiseIA.analise_financeira)
+      linhas.push(``)
+    }
+
+    if (analiseIA.pontos_atencao?.length > 0) {
+      linhas.push(`${'─'.repeat(65)}`)
+      linhas.push(`PONTOS DE ATENÇÃO`)
+      linhas.push(`${'─'.repeat(65)}`)
+      analiseIA.pontos_atencao.forEach((p: string, i: number) => linhas.push(`${i + 1}. ${p}`))
+      linhas.push(``)
+    }
+
+    linhas.push(`${'─'.repeat(65)}`)
+    linhas.push(`RECOMENDAÇÃO FINAL`)
+    linhas.push(`${'─'.repeat(65)}`)
+    linhas.push(analiseIA.recomendacao_final || '')
+    linhas.push(``)
+    linhas.push(`${'─'.repeat(65)}`)
+    linhas.push(`JUSTIFICATIVA DO SCORE`)
+    linhas.push(`${'─'.repeat(65)}`)
+    linhas.push(analiseIA.justificativa_score || '')
+    linhas.push(``)
+    linhas.push(`${'─'.repeat(65)}`)
+    linhas.push(`Relatório gerado pelo sistema SoftHouse — Compliance IA`)
+    linhas.push(`Esta análise não substitui parecer jurídico profissional.`)
+
+    const blob = new Blob([linhas.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `compliance-ia-${nome.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading) {
@@ -243,7 +334,8 @@ export default function ResultadoPage() {
   }
 
   const cfg = RISCO_CONFIG[data.nivel_risco] || RISCO_CONFIG.LIMPO
-  const filteredFindings = tab === 'Todos' ? data.findings : data.findings.filter(f => f.categoria === tab)
+  const midiaFindings = data.findings.filter(f => f.categoria === 'MIDIA')
+  const filteredFindings = tab === 'Todos' ? data.findings : tab === 'NOTICIAS' ? midiaFindings : data.findings.filter(f => f.categoria === tab)
   const analise = gerarAnalise(data)
 
   return (
@@ -387,6 +479,13 @@ export default function ResultadoPage() {
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900">Análise com Inteligência Artificial</h3>
               </div>
+              <button
+                onClick={downloadRelatorioIA}
+                className="no-print flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 border border-violet-200 hover:border-violet-400 px-3 py-1.5 rounded-lg transition-colors bg-violet-50 hover:bg-violet-100"
+                title="Baixar relatório IA em TXT"
+              >
+                <FileText className="h-3.5 w-3.5" /> Baixar Relatório
+              </button>
               {/* Score IA */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
@@ -587,24 +686,75 @@ export default function ResultadoPage() {
               </h3>
               <div className="flex items-center gap-2 flex-wrap no-print">
                 {TABS.map(t => {
-                  const count = t === 'Todos' ? data.findings.length : data.findings.filter(f => f.categoria === t).length
+                  const count = t === 'Todos'
+                    ? data.findings.length
+                    : t === 'NOTICIAS'
+                    ? midiaFindings.length
+                    : data.findings.filter(f => f.categoria === t).length
                   if (count === 0 && t !== 'Todos') return null
+                  const label = t === 'Todos' ? 'Todos'
+                    : t === 'NOTICIAS' ? 'Notícias'
+                    : CAT_CONFIG[t]?.label || t
                   return (
                     <button
                       key={t}
                       onClick={() => setTab(t)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        tab === t ? 'bg-[#0f172a] text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+                        tab === t
+                          ? t === 'NOTICIAS' ? 'bg-blue-600 text-white' : 'bg-[#0f172a] text-white'
+                          : 'bg-gray-100 text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      {t === 'Todos' ? 'Todos' : CAT_CONFIG[t]?.label || t} ({count})
+                      {label} ({count})
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            <div className="divide-y divide-gray-50">
+            {/* Aba Notícias — layout especial */}
+            {tab === 'NOTICIAS' && (
+              <div className="p-5">
+                {midiaFindings.length === 0 ? (
+                  <div className="flex flex-col items-center py-8 text-center">
+                    <Globe className="h-10 w-10 text-gray-200 mb-2" />
+                    <p className="text-sm text-gray-500">Nenhuma notícia negativa encontrada</p>
+                    <p className="text-xs text-gray-400 mt-1">Configure GOOGLE_API_KEY + GOOGLE_SEARCH_CX para ativar a busca em mídia</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {midiaFindings.map(f => {
+                      const parts = f.descricao?.split('| Domínio:') || []
+                      const resumo = parts[0]?.trim() || f.descricao
+                      const dominio = parts[1]?.trim() || f.fonte
+                      return (
+                        <a
+                          key={f.id}
+                          href={f.fonte_url || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all group"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded uppercase">Mídia Negativa</span>
+                                <span className="text-[10px] text-gray-400 truncate">{dominio}</span>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-800 leading-snug mb-1">{f.titulo}</p>
+                              <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">{resumo}</p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500 flex-shrink-0 mt-1" />
+                          </div>
+                        </a>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab !== 'NOTICIAS' && <div className="divide-y divide-gray-50">
               {filteredFindings.map(f => {
                 const sevCfg = SEV_CONFIG[f.severidade] || SEV_CONFIG.INFO
                 const catCfg = CAT_CONFIG[f.categoria] || { label: f.categoria, icon: Info }
@@ -656,7 +806,7 @@ export default function ResultadoPage() {
                   </div>
                 )
               })}
-            </div>
+            </div>}
           </div>
         )}
 
