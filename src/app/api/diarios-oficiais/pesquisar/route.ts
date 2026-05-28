@@ -100,8 +100,9 @@ const COURTS = [
 ]
 
 async function searchDataJud(termo: string): Promise<DiarioResult[]> {
+  // Pesquisa pelo nome da parte — busca em todos os tribunais em paralelo
   const batches: typeof COURTS[] = []
-  for (let i = 0; i < COURTS.length; i += 8) batches.push(COURTS.slice(i, i + 8))
+  for (let i = 0; i < COURTS.length; i += 6) batches.push(COURTS.slice(i, i + 6))
   const all: DiarioResult[] = []
   for (const batch of batches) {
     const results = await Promise.all(batch.map(async c => {
@@ -110,8 +111,19 @@ async function searchDataJud(termo: string): Promise<DiarioResult[]> {
           method: 'POST',
           headers: { Authorization: `ApiKey ${DATAJUD_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: { multi_match: { query: termo, fields: ['txtEmenta^3', 'txtDecisao', 'orgaoJulgador.descricao'], operator: 'and' } },
-            _source: ['numeroProcesso', 'dataAjuizamento', 'classeProcessual', 'orgaoJulgador', 'txtEmenta', 'siglaTribunal'],
+            query: {
+              bool: {
+                should: [
+                  // Busca por nome da parte (principal)
+                  { match_phrase: { 'partes.nome': termo } },
+                  // Fallback: nome em qualquer campo de texto relevante
+                  { match: { 'partes.nome': { query: termo, operator: 'and', boost: 2 } } },
+                  { match: { txtEmenta: { query: termo, minimum_should_match: '75%' } } },
+                ],
+                minimum_should_match: 1,
+              },
+            },
+            _source: ['numeroProcesso', 'dataAjuizamento', 'classeProcessual', 'orgaoJulgador', 'partes', 'assuntos', 'siglaTribunal', 'txtEmenta'],
             size: 5,
           }),
           signal: AbortSignal.timeout(10000),
@@ -120,12 +132,15 @@ async function searchDataJud(termo: string): Promise<DiarioResult[]> {
         const d = await r.json()
         return (d.hits?.hits || []).map((h: any) => {
           const s = h._source || {}
+          const partes = (s.partes || []).map((p: any) => `${p.nome || ''}${p.polo ? ` (${p.polo})` : ''}`).join(', ')
           return {
             fonte: `${c.nome} — DataJud CNJ`,
             fonte_tipo: c.tipo,
             data_publicacao: s.dataAjuizamento?.split('T')[0] || null,
             titulo: `${s.classeProcessual?.descricao || 'Processo'} nº ${s.numeroProcesso || h._id}`,
-            resumo: (s.txtEmenta || `Órgão: ${s.orgaoJulgador?.descricao || '—'}`).slice(0, 350),
+            resumo: partes
+              ? `Partes: ${partes.slice(0, 200)} | Órgão: ${s.orgaoJulgador?.descricao || '—'}`
+              : (s.txtEmenta || `Órgão: ${s.orgaoJulgador?.descricao || '—'}`).slice(0, 350),
             url: `https://www.cnj.jus.br/busca-ativa-de-processos/?numero=${s.numeroProcesso || ''}`,
           } as DiarioResult
         })

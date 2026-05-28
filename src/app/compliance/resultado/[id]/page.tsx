@@ -6,7 +6,7 @@ import {
   ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Info,
   Scale, Building2, Briefcase, XCircle, Globe, Landmark, Leaf,
   AlertCircle, MinusCircle, Printer, FileText, Sparkles, Loader2,
-  TrendingUp, TrendingDown, Minus, ChevronRight,
+  TrendingUp, TrendingDown, Minus, ChevronRight, Trash2,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
@@ -263,6 +263,16 @@ export default function ResultadoPage() {
       >
         <Button variant="outline" size="sm" onClick={() => router.push('/compliance/dashboard')} className="no-print">
           <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+        <Button
+          variant="outline" size="sm" className="no-print text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          onClick={async () => {
+            if (!confirm('Excluir esta consulta permanentemente?')) return
+            await fetch(`/api/compliance/checks?id=${id}`, { method: 'DELETE' })
+            router.push('/compliance/dashboard')
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-1" /> Excluir
         </Button>
         <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print">
           <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
