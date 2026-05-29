@@ -13,39 +13,66 @@ async function getCnpjDetails(cnpj: string): Promise<any | null> {
   } catch { return null }
 }
 
-async function getEmpresasDoSocio(cpf: string, apiKey: string): Promise<{ cnpj: string; nome: string }[]> {
-  // Tenta Portal da Transparência /socios?cpf=...
-  if (apiKey) {
+async function getEmpresasDoSocio(cpf: string): Promise<{ cnpj: string; nome: string }[]> {
+  const apiKeyTransp = process.env.TRANSPARENCIA_API_KEY || ''
+  const brasilIoToken = process.env.BRASIL_IO_TOKEN || ''
+
+  // 1. brasil.io — dataset socios-brasil (fonte mais completa de QSA por CPF)
+  if (brasilIoToken) {
     try {
       const res = await fetch(
-        `${BASE_TRANSPARENCIA}/socios?cpf=${cpf}&pagina=1`,
-        { headers: { 'chave-api-dados': apiKey }, signal: AbortSignal.timeout(8000) }
+        `https://brasil.io/api/dataset/socios-brasil/socios/data/?cpf_socio=${cpf}&format=json`,
+        {
+          headers: { Authorization: `Token ${brasilIoToken}` },
+          signal: AbortSignal.timeout(12000),
+        }
       )
       if (res.ok) {
         const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) {
-          return data.slice(0, 8).map((item: any) => ({
-            cnpj: (item.cnpj || item.cnpjEmpresa || '').replace(/\D/g, ''),
-            nome: item.razaoSocial || item.nomeEmpresa || 'N/A',
+        const items: any[] = data?.results || []
+        if (items.length > 0) {
+          return items.slice(0, 10).map((item: any) => ({
+            cnpj: (item.cnpj || '').replace(/\D/g, ''),
+            nome: item.razao_social || 'N/A',
           })).filter(e => e.cnpj.length === 14)
         }
       }
     } catch {}
   }
 
-  // Fallback: CNPJ.ws public search by CPF
+  // 2. Portal da Transparência — /socios endpoint (quando disponível)
+  if (apiKeyTransp) {
+    try {
+      const res = await fetch(
+        `${BASE_TRANSPARENCIA}/socios?cpf=${cpf}&pagina=1`,
+        { headers: { 'chave-api-dados': apiKeyTransp }, signal: AbortSignal.timeout(10000) }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) {
+          const found = data.slice(0, 10).map((item: any) => ({
+            cnpj: (item.cnpj || item.cnpjEmpresa || '').replace(/\D/g, ''),
+            nome: item.razaoSocial || item.nomeEmpresa || 'N/A',
+          })).filter(e => e.cnpj.length === 14)
+          if (found.length > 0) return found
+        }
+      }
+    } catch {}
+  }
+
+  // 3. open.cnpja.com — consulta pública RF (sem autenticação)
   try {
     const res = await fetch(
-      `https://publica.cnpj.ws/cnpj-search?search=${cpf}&offset=0`,
-      { signal: AbortSignal.timeout(8000) }
+      `https://open.cnpja.com/people/${cpf}`,
+      { signal: AbortSignal.timeout(10000) }
     )
     if (res.ok) {
       const data = await res.json()
-      const items: any[] = data?.data || data?.results || []
-      if (items.length > 0) {
-        return items.slice(0, 8).map((c: any) => ({
-          cnpj: (c.cnpj || c.ni || '').replace(/\D/g, ''),
-          nome: c.razao_social || c.nome || 'N/A',
+      const companies: any[] = data?.companies || data?.offices || []
+      if (companies.length > 0) {
+        return companies.slice(0, 10).map((c: any) => ({
+          cnpj: (c.cnpj || c.taxId || '').replace(/\D/g, ''),
+          nome: c.alias || c.name || c.razao_social || 'N/A',
         })).filter(e => e.cnpj.length === 14)
       }
     }
@@ -117,7 +144,6 @@ async function searchProcessosEmpresa(cnpj: string, nome: string): Promise<Findi
     } catch {}
   }))
 
-  // Deduplica por número de processo
   const seen = new Set<string>()
   return findings.filter(f => {
     const n = f.descricao.match(/Nº (\S+)/)?.[1] || f.titulo
@@ -133,14 +159,19 @@ export async function checkSocios(cpf: string): Promise<EngineResult> {
   const findings: Finding[] = []
 
   try {
-    const empresas = await getEmpresasDoSocio(cpfClean, apiKey)
+    const empresas = await getEmpresasDoSocio(cpfClean)
 
     if (empresas.length === 0) {
+      const hasBrasilIo = !!process.env.BRASIL_IO_TOKEN
       return {
         engine: 'Empresas Vinculadas (QSA)',
         success: true,
         findings: [],
-        metadata: { message: 'Nenhuma empresa vinculada localizada nas fontes consultadas.' },
+        metadata: {
+          message: hasBrasilIo
+            ? 'Nenhuma empresa vinculada localizada nas fontes consultadas.'
+            : 'Sem resultados. Para ativar busca de empresas vinculadas, configure BRASIL_IO_TOKEN (gratuito em brasil.io).',
+        },
       }
     }
 
@@ -161,7 +192,6 @@ export async function checkSocios(cpf: string): Promise<EngineResult> {
         const nomeReal = details?.razao_social || nome
         const irregular = !['ATIVA', 'N/A'].includes(situacao)
 
-        // Finding principal — empresa vinculada
         findings.push({
           categoria: 'CADASTRAL',
           severidade: irregular ? 'ALTO' : 'INFO',
@@ -171,7 +201,6 @@ export async function checkSocios(cpf: string): Promise<EngineResult> {
           status_ocorrencia: irregular ? 'IRREGULAR' : 'ATIVO',
         })
 
-        // Sanções da empresa
         if (sancoes.ceis) {
           findings.push({
             categoria: 'SANCAO',
@@ -195,7 +224,6 @@ export async function checkSocios(cpf: string): Promise<EngineResult> {
           })
         }
 
-        // Processos das empresas
         findings.push(...processos)
       })
     )

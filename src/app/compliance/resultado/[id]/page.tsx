@@ -203,7 +203,6 @@ export default function ResultadoPage() {
     setErroIA('')
     try {
       const res = await fetch(`/api/compliance/analisar/${id}`, { method: 'POST' })
-      // Clone antes de tentar JSON — body só pode ser lido uma vez
       const resClone = res.clone()
       let json: any
       try {
@@ -214,6 +213,14 @@ export default function ResultadoPage() {
       }
       if (!res.ok) throw new Error(json?.error || `Erro ${res.status}`)
       setAnaliseIA(json.analise)
+      // Atualiza o score exibido com o score contextual da IA
+      if (json.analise?.score_ia !== undefined && json.analise?.nivel_risco) {
+        setData(prev => prev ? {
+          ...prev,
+          score_total: json.analise.score_ia,
+          nivel_risco: json.analise.nivel_risco,
+        } : prev)
+      }
     } catch (e: any) {
       setErroIA(e.message)
     } finally {
@@ -221,93 +228,83 @@ export default function ResultadoPage() {
     }
   }
 
-  function downloadRelatorioIA() {
+  function downloadRelatorioPDF() {
     if (!analiseIA || !data) return
     const nome = data.nome || data.documento
     const doc = data.tipo === 'CPF'
       ? data.documento.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
       : data.documento.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
 
-    const linhas: string[] = [
-      `RELATÓRIO DE COMPLIANCE — ANÁLISE COM INTELIGÊNCIA ARTIFICIAL`,
-      `${'='.repeat(65)}`,
-      ``,
-      `Analisado: ${nome}`,
-      `Documento: ${doc} (${data.tipo})`,
-      `Data da análise: ${formatDate(data.created_at)}`,
-      ``,
-      `SCORE IA: ${analiseIA.score_ia}/100 — NÍVEL: ${analiseIA.nivel_risco}`,
-      ``,
-      `${'─'.repeat(65)}`,
-      `RESUMO EXECUTIVO`,
-      `${'─'.repeat(65)}`,
-      analiseIA.resumo_executivo || '',
-      ``,
-    ]
-
-    if (analiseIA.processos_analise?.length > 0) {
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(`PROCESSOS JUDICIAIS — ANÁLISE DETALHADA (${analiseIA.processos_analise.length})`)
-      linhas.push(`${'─'.repeat(65)}`)
-      analiseIA.processos_analise.forEach((p: any, i: number) => {
-        linhas.push(``)
-        linhas.push(`[${i + 1}] ${p.titulo || ''}`)
-        linhas.push(`    Nº: ${p.numero || 'N/I'} | Tribunal: ${p.tribunal || 'N/I'}`)
-        linhas.push(`    Polo: ${p.polo || 'N/I'} — ${p.polo_descricao || ''}`)
-        linhas.push(`    Status: ${p.status || 'N/I'} | Natureza: ${p.natureza || 'N/I'}`)
-        linhas.push(`    Impacto: ${p.impacto_compliance || 'N/I'}`)
-        if (p.do_que_se_trata) linhas.push(`    O que é: ${p.do_que_se_trata}`)
-        if (p.possiveis_implicacoes) linhas.push(`    Implicações: ${p.possiveis_implicacoes}`)
-        if (p.movimentacoes) linhas.push(`    Movimentações: ${p.movimentacoes}`)
-      })
-      linhas.push(``)
+    const nivelColor: Record<string, string> = {
+      CRITICO: '#dc2626', ALTO: '#ea580c', MEDIO: '#ca8a04', BAIXO: '#2563eb', LIMPO: '#16a34a',
     }
+    const cor = nivelColor[analiseIA.nivel_risco] || '#1e293b'
 
-    if (analiseIA.analise_sancoes) {
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(`SANÇÕES E IMPEDIMENTOS`)
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(analiseIA.analise_sancoes)
-      linhas.push(``)
-    }
+    const processosHtml = (analiseIA.processos_analise || []).map((p: any, i: number) => `
+      <div style="margin:12px 0;padding:10px 12px;border-left:3px solid ${p.polo === 'PASSIVO' ? '#dc2626' : p.polo === 'ATIVO' ? '#2563eb' : '#94a3b8'};background:#f8fafc;border-radius:0 6px 6px 0">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px">
+          <b style="color:${p.polo === 'PASSIVO' ? '#dc2626' : p.polo === 'ATIVO' ? '#2563eb' : '#475569'}">[${i+1}] ${p.polo === 'PASSIVO' ? '⚠ RÉU/DEMANDADO' : p.polo === 'ATIVO' ? '→ AUTOR/DEMANDANTE' : '? POLO INDEFINIDO'}</b>
+          &nbsp;|&nbsp;${p.status || 'N/I'}&nbsp;|&nbsp;${p.natureza || ''}&nbsp;|&nbsp;Impacto: <b>${p.impacto_compliance || 'N/I'}</b>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:2px">${p.titulo || 'Processo'}</div>
+        <div style="font-size:11px;color:#475569">Nº ${p.numero || 'N/I'} | ${p.tribunal || ''}</div>
+        ${p.polo_descricao ? `<div style="font-size:11px;color:#64748b;margin-top:3px">${p.polo_descricao}</div>` : ''}
+        ${p.resumo ? `<div style="font-size:11px;color:#374151;margin-top:4px">${p.resumo}</div>` : ''}
+      </div>`).join('')
 
-    if (analiseIA.analise_financeira) {
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(`SITUAÇÃO FINANCEIRA`)
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(analiseIA.analise_financeira)
-      linhas.push(``)
-    }
+    const pontosHtml = (analiseIA.pontos_atencao || []).map((p: string) =>
+      `<li style="margin:4px 0;font-size:12px">${p}</li>`).join('')
 
-    if (analiseIA.pontos_atencao?.length > 0) {
-      linhas.push(`${'─'.repeat(65)}`)
-      linhas.push(`PONTOS DE ATENÇÃO`)
-      linhas.push(`${'─'.repeat(65)}`)
-      analiseIA.pontos_atencao.forEach((p: string, i: number) => linhas.push(`${i + 1}. ${p}`))
-      linhas.push(``)
-    }
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Relatório Compliance — ${nome}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#1e293b;font-size:13px}
+  h1{font-size:17px;color:#0f172a;border-bottom:2px solid #0f172a;padding-bottom:8px;margin-bottom:16px}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin:20px 0 8px}
+  .score-box{display:flex;align-items:center;gap:24px;padding:16px;background:#f8fafc;border-radius:8px;margin-bottom:16px}
+  .score-num{font-size:52px;font-weight:900;color:${cor};line-height:1}
+  .nivel{font-size:14px;font-weight:700;color:${cor}}
+  .section{margin:16px 0;padding:12px 16px;background:#f8fafc;border-radius:6px}
+  ul{margin:0;padding-left:20px} li{margin:3px 0}
+  .footer{margin-top:32px;font-size:9px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
+  @media print{body{padding:16px}button{display:none}}
+</style></head><body>
+<h1>RELATÓRIO DE COMPLIANCE — ANÁLISE COM INTELIGÊNCIA ARTIFICIAL</h1>
+<table style="font-size:12px;margin-bottom:12px"><tr><td style="padding-right:32px"><b>Analisado:</b> ${nome}</td><td><b>Documento:</b> ${doc} (${data.tipo})</td></tr>
+<tr><td><b>Data:</b> ${formatDate(data.created_at)}</td><td><b>Gerado em:</b> ${new Date().toLocaleDateString('pt-BR')}</td></tr></table>
 
-    linhas.push(`${'─'.repeat(65)}`)
-    linhas.push(`RECOMENDAÇÃO FINAL`)
-    linhas.push(`${'─'.repeat(65)}`)
-    linhas.push(analiseIA.recomendacao_final || '')
-    linhas.push(``)
-    linhas.push(`${'─'.repeat(65)}`)
-    linhas.push(`JUSTIFICATIVA DO SCORE`)
-    linhas.push(`${'─'.repeat(65)}`)
-    linhas.push(analiseIA.justificativa_score || '')
-    linhas.push(``)
-    linhas.push(`${'─'.repeat(65)}`)
-    linhas.push(`Relatório gerado pelo sistema SoftHouse — Compliance IA`)
-    linhas.push(`Esta análise não substitui parecer jurídico profissional.`)
+<div class="score-box">
+  <div><div class="score-num">${analiseIA.score_ia}</div><div style="font-size:10px;color:#64748b">SCORE IA</div></div>
+  <div><div class="nivel">${analiseIA.nivel_risco}</div><div style="font-size:10px;color:#64748b;margin-top:4px">NÍVEL DE RISCO</div></div>
+</div>
 
-    const blob = new Blob([linhas.join('\n')], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `compliance-ia-${nome.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+<h2>Resumo Executivo</h2>
+<div class="section"><p style="margin:0;line-height:1.6">${analiseIA.resumo_executivo || ''}</p></div>
+
+${(analiseIA.processos_analise?.length > 0) ? `<h2>Processos Judiciais Analisados (${analiseIA.processos_analise.length})</h2>${processosHtml}` : ''}
+
+${analiseIA.analise_financeira ? `<h2>Situação Financeira</h2><div class="section"><p style="margin:0">${analiseIA.analise_financeira}</p></div>` : ''}
+
+${pontosHtml ? `<h2>Pontos de Atenção</h2><ul>${pontosHtml}</ul>` : ''}
+
+<h2>Recomendação Final</h2>
+<div class="section" style="background:#fef9f0;border-left:3px solid ${cor}">
+  <p style="margin:0;line-height:1.6">${analiseIA.recomendacao_final || ''}</p>
+</div>
+
+${analiseIA.justificativa_score ? `<h2>Justificativa do Score</h2><p style="font-size:11px;color:#475569">${analiseIA.justificativa_score}</p>` : ''}
+
+<div class="footer">
+  Relatório gerado pelo sistema SoftHouse — Compliance IA | Esta análise não substitui parecer jurídico profissional.<br>
+  ${nome} | ${doc} | Score IA: ${analiseIA.score_ia}/100
+</div>
+<script>setTimeout(()=>window.print(),600)</script>
+</body></html>`
+
+    const win = window.open('', '_blank')
+    if (!win) { alert('Permita pop-ups para baixar o PDF.'); return }
+    win.document.write(html)
+    win.document.close()
   }
 
   if (loading) {
@@ -373,8 +370,13 @@ export default function ResultadoPage() {
           <Trash2 className="h-4 w-4 mr-1" /> Excluir
         </Button>
         <Button variant="outline" size="sm" onClick={() => window.print()} className="no-print">
-          <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
+          <Printer className="h-4 w-4 mr-1" /> Imprimir
         </Button>
+        {analiseIA && (
+          <Button variant="outline" size="sm" onClick={downloadRelatorioPDF} className="no-print text-violet-600 hover:text-violet-700 hover:bg-violet-50 border-violet-200">
+            <FileText className="h-4 w-4 mr-1" /> Baixar PDF IA
+          </Button>
+        )}
         <Button
           size="sm"
           onClick={gerarAnaliseIA}

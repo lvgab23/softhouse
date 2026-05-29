@@ -57,12 +57,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     )
 
     // Limita por categoria — mantém resposta dentro do max_tokens
-    const judiciais  = priorizar(filtered.filter(f => f.categoria === 'JUDICIAL'),   8)
-    const criminais  = priorizar(filtered.filter(f => f.categoria === 'CRIMINAL'),   5)
-    const sancoes    = priorizar(filtered.filter(f => f.categoria === 'SANCAO'),     5)
-    const financeiro = priorizar(filtered.filter(f => f.categoria === 'FINANCEIRO'), 3)
-    const ambiental  = priorizar(filtered.filter(f => f.categoria === 'AMBIENTAL'),  3)
-    const midia      = priorizar(filtered.filter(f => f.categoria === 'MIDIA'),      3)
+    const judiciais  = priorizar(filtered.filter(f => f.categoria === 'JUDICIAL'),   5)
+    const criminais  = priorizar(filtered.filter(f => f.categoria === 'CRIMINAL'),   3)
+    const sancoes    = priorizar(filtered.filter(f => f.categoria === 'SANCAO'),     3)
+    const financeiro = priorizar(filtered.filter(f => f.categoria === 'FINANCEIRO'), 2)
+    const ambiental  = priorizar(filtered.filter(f => f.categoria === 'AMBIENTAL'),  2)
+    const midia      = priorizar(filtered.filter(f => f.categoria === 'MIDIA'),      2)
 
     const totalOriginal = filtered.length
     const totalEnviado  = judiciais.length + criminais.length + sancoes.length + financeiro.length + ambiental.length + midia.length
@@ -72,68 +72,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ? `CPF ${String(check.documento).replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}`
       : `CNPJ ${String(check.documento).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}`
 
-    const prompt = `Você é especialista sênior em compliance e gestão de risco para Family Offices brasileiros. Analise os dados abaixo e gere um relatório JSON completo.
+    const prompt = `Especialista compliance Family Office brasileiro. Analise e responda APENAS JSON válido.
 
 ANALISADO: ${nome} | ${docFmt} | ${new Date(check.created_at).toLocaleDateString('pt-BR')}
-Total de ocorrências: ${totalOriginal} (analisando as ${totalEnviado} mais relevantes)
+Ocorrências: ${totalOriginal} total (${totalEnviado} mais relevantes abaixo)
 
-── PROCESSOS JUDICIAIS (${judiciais.length} de ${allFindings.filter(f => f.categoria === 'JUDICIAL').length}) ──
+PROCESSOS JUDICIAIS (${judiciais.length} de ${filtered.filter(f => f.categoria === 'JUDICIAL').length} total):
 ${formatFindings(judiciais)}
+CRIMINAIS (${criminais.length}): ${formatFindings(criminais)}
+SANÇÕES (${sancoes.length}): ${formatFindings(sancoes)}
+FINANCEIRO (${financeiro.length}): ${formatFindings(financeiro)}
+AMBIENTAL (${ambiental.length}): ${formatFindings(ambiental)}
+MÍDIA (${midia.length}): ${formatFindings(midia)}
 
-── ANTECEDENTES CRIMINAIS (${criminais.length}) ──
-${formatFindings(criminais)}
+REGRAS DE POLO: PASSIVO=Execução/Monitória/Cobrança/Ação Penal/Inquérito/Despejo. ATIVO=MS/HC/Rescisória/Reclamação Trabalhista. INDEFINIDO=sem dados.
+SCORE 0-100 (cumulativo com caps): criminal ativo passivo +35(cap70) | sanção ativa +25(cap50) | dívida federal +20 | cível ativo passivo +8(cap24) | trabalhista +6(cap18) | encerrados +1(cap10) | mídia +5(cap15). Considere CONTEXTO: advogado/procurador não é parte; processo encerrado há anos pesa menos.
 
-── SANÇÕES E IMPEDIMENTOS (${sancoes.length} de ${allFindings.filter(f => f.categoria === 'SANCAO').length}) ──
-${formatFindings(sancoes)}
-
-── SITUAÇÃO FINANCEIRA / PGFN (${financeiro.length}) ──
-${formatFindings(financeiro)}
-
-── INFRAÇÕES AMBIENTAIS (${ambiental.length}) ──
-${formatFindings(ambiental)}
-
-── MÍDIA NEGATIVA (${midia.length}) ──
-${formatFindings(midia)}
-
-── INSTRUÇÕES ──
-POLO PROCESSUAL: infira pela classe — PASSIVO: Execução, Monitória, Cobrança, Ação Penal, Inquérito, Despejo, Busca e Apreensão. ATIVO: Mandado de Segurança, Habeas Corpus, Rescisória, Reclamação Trabalhista (PF). INDEFINIDO: sem dados suficientes.
-TRIBUNAL: extraia da fonte (TJSP=São Paulo, TJRJ=Rio, TRF=federal, TST=trabalhista).
-SCORE 0-100: criminal ativo passivo +35 (cap 70) | sanção gov. ativa +25 (cap 50) | dívida ativa federal +20 | cível ativo passivo +8 (cap 24) | trabalhista ativo +6 (cap 18) | encerrados +1 (cap 10) | mídia neg. +5 (cap 15).
-
-Responda SOMENTE com JSON válido, sem texto antes ou depois:
-
-{
-  "score_ia": <0-100>,
-  "nivel_risco": "<CRITICO|ALTO|MEDIO|BAIXO|LIMPO>",
-  "resumo_executivo": "<3-4 frases objetivas sobre o perfil de risco>",
-  "processos_analise": [
-    {
-      "numero": "<CNJ ou 'Não informado'>",
-      "titulo": "<classe processual>",
-      "tribunal": "<sigla — estado>",
-      "polo": "<ATIVO|PASSIVO|INDEFINIDO>",
-      "polo_descricao": "<ex: Réu em ação de execução>",
-      "status": "<ATIVO|ENCERRADO>",
-      "natureza": "<cível|criminal|trabalhista|fiscal|ambiental|família|empresarial|previdenciário|outro>",
-      "do_que_se_trata": "<2-3 frases sobre o que é este processo juridicamente>",
-      "possiveis_implicacoes": "<2-3 frases sobre impactos em patrimônio, crédito, reputação, liberdade>",
-      "impacto_compliance": "<ALTO|MEDIO|BAIXO> — <justificativa>",
-      "movimentacoes": "<última movimentação e quantidade se disponível>",
-      "observacoes": "<detalhes adicionais relevantes>"
-    }
-  ],
-  "analise_sancoes": "<parágrafo sobre sanções encontradas>",
-  "analise_financeira": "<parágrafo sobre situação financeira e dívidas>",
-  "pontos_atencao": ["<ponto 1>", "<ponto 2>"],
-  "recomendacao_final": "<2-3 parágrafos com recomendação profissional e ações concretas>",
-  "justificativa_score": "<como chegou ao score, fatores e pontos atribuídos>"
-}`
+JSON (sem texto antes/depois, strings curtas máx 200 chars cada):
+{"score_ia":0,"nivel_risco":"LIMPO","resumo_executivo":"","processos_analise":[{"numero":"","titulo":"","tribunal":"","polo":"INDEFINIDO","polo_descricao":"","status":"ATIVO","natureza":"cível","resumo":"","impacto_compliance":"BAIXO"}],"analise_financeira":"","pontos_atencao":[""],"recomendacao_final":"","justificativa_score":""}`
 
     const anthropic = new Anthropic({ apiKey })
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: 5000,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -147,9 +109,17 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois:
     const analiseIA = JSON.parse(jsonMatch[0])
 
     const resumoAtual = check.resumo || {}
+
+    // Salva análise e atualiza o score/nível com o score contextual da IA
+    const updatePayload: any = {
+      resumo: { ...resumoAtual, _ai_analise: analiseIA },
+    }
+    if (analiseIA.score_ia !== undefined) updatePayload.score_total = analiseIA.score_ia
+    if (analiseIA.nivel_risco) updatePayload.nivel_risco = analiseIA.nivel_risco
+
     await (supabase as any)
       .from('compliance_checks')
-      .update({ resumo: { ...resumoAtual, _ai_analise: analiseIA } })
+      .update(updatePayload)
       .eq('id', params.id)
 
     return NextResponse.json({ success: true, analise: analiseIA })
