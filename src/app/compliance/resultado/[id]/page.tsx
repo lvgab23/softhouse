@@ -176,6 +176,39 @@ function formatDoc(doc: string, tipo: string) {
   return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 }
 
+function sanitizeAnaliseIA(raw: any): any {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const toStr = (v: any) => (v == null ? '' : String(v))
+  const toNum = (v: any) => (typeof v === 'number' ? v : Number(v) || 0)
+  const toArr = (v: any): string[] =>
+    Array.isArray(v) ? v.map(toStr).filter(Boolean) : []
+  const toObjArr = (v: any): any[] => (Array.isArray(v) ? v : [])
+  return {
+    score_ia: toNum(raw.score_ia),
+    nivel_risco: toStr(raw.nivel_risco) || 'LIMPO',
+    resumo_executivo: toStr(raw.resumo_executivo),
+    analise_financeira: toStr(raw.analise_financeira),
+    recomendacao_final: toStr(raw.recomendacao_final),
+    justificativa_score: toStr(raw.justificativa_score),
+    pontos_atencao: toArr(raw.pontos_atencao),
+    processos_analise: toObjArr(raw.processos_analise).map((p: any) => ({
+      numero: toStr(p?.numero),
+      titulo: toStr(p?.titulo),
+      tribunal: toStr(p?.tribunal),
+      polo: toStr(p?.polo) || 'INDEFINIDO',
+      polo_descricao: toStr(p?.polo_descricao),
+      status: toStr(p?.status) || 'ATIVO',
+      natureza: toStr(p?.natureza),
+      resumo: toStr(p?.resumo),
+      impacto_compliance: toStr(p?.impacto_compliance),
+      observacoes: toStr(p?.observacoes),
+      do_que_se_trata: toStr(p?.do_que_se_trata),
+      possiveis_implicacoes: toStr(p?.possiveis_implicacoes),
+      movimentacoes: toStr(p?.movimentacoes),
+    })),
+  }
+}
+
 export default function ResultadoPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
@@ -193,7 +226,7 @@ export default function ResultadoPage() {
         setData(d)
         setLoading(false)
         // Carrega análise IA salva anteriormente, se existir
-        if (d?.resumo?._ai_analise) setAnaliseIA(d.resumo._ai_analise)
+        if (d?.resumo?._ai_analise) setAnaliseIA(sanitizeAnaliseIA(d.resumo._ai_analise))
       })
       .catch(() => setLoading(false))
   }, [id])
@@ -212,7 +245,7 @@ export default function ResultadoPage() {
         throw new Error(text?.substring(0, 300) || `Erro ${res.status} — tente novamente`)
       }
       if (!res.ok) throw new Error(json?.error || `Erro ${res.status}`)
-      setAnaliseIA(json.analise)
+      setAnaliseIA(sanitizeAnaliseIA(json.analise))
       // Atualiza o score exibido com o score contextual da IA
       if (json.analise?.score_ia !== undefined && json.analise?.nivel_risco) {
         setData(prev => prev ? {
