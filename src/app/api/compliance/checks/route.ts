@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -28,7 +28,7 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = await createClient()
 
-  // Verifica ownership antes de deletar
+  // Verifica que a consulta pertence ao usuário
   const { data: owned } = await (supabase as any)
     .from('compliance_checks')
     .select('id')
@@ -38,9 +38,10 @@ export async function DELETE(req: NextRequest) {
 
   if (!owned) return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 })
 
-  // Remove findings e alertas relacionados (sem filtro user_id — essas tabelas usam check_id)
-  await (supabase as any).from('compliance_findings').delete().eq('check_id', id)
-  await (supabase as any).from('compliance_alerts').delete().eq('check_id', id)
+  // Usa admin client para deletar findings e alertas (bypassa RLS das tabelas relacionadas)
+  const admin = createAdminClient()
+  await (admin as any).from('compliance_findings').delete().eq('check_id', id)
+  await (admin as any).from('compliance_alerts').delete().eq('check_id', id)
 
   const { error: dbErr } = await (supabase as any)
     .from('compliance_checks')

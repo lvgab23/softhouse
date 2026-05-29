@@ -72,8 +72,13 @@ export default function ComplianceDashboard() {
     e.stopPropagation()
     if (!confirm('Excluir esta consulta? Esta ação não pode ser desfeita.')) return
     setDeleting(id)
-    await fetch(`/api/compliance/checks?id=${id}`, { method: 'DELETE' })
-    setChecks(prev => prev.filter(c => c.id !== id))
+    const res = await fetch(`/api/compliance/checks?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setChecks(prev => prev.filter(c => c.id !== id))
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(`Erro ao excluir: ${data.error || res.status}`)
+    }
     setDeleting(null)
   }
 

@@ -20,47 +20,34 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 })
   }
 
-  // Remove registros falsos de Acordos de Leniência (API CGU ignora filtro CPF)
-  // Usa 'Acordo de Leni%' para evitar problemas de encoding com o caractere ê
-  const { data: deletedRows } = await (supabase as any)
-    .from('compliance_findings')
-    .delete()
-    .eq('check_id', params.id)
-    .ilike('titulo', 'Acordo de Leni%')
-    .select('id')
-
-  // Limpa também alertas falsos gerados por esses findings
-  if (deletedRows && deletedRows.length > 0) {
-    await (supabase as any)
-      .from('compliance_alerts')
-      .delete()
-      .eq('check_id', params.id)
-      .ilike('titulo', 'Acordo de Leni%')
-  }
-
   const findingsRes = await (supabase as any)
     .from('compliance_findings')
     .select('*')
     .eq('check_id', params.id)
     .order('severidade', { ascending: true })
 
-  const findings: any[] = findingsRes.data || []
-  const removed = deletedRows?.length ?? 0
+  const allFindings: any[] = findingsRes.data || []
 
-  // Se removeu registros falsos, recalcula score e atualiza o check
+  // Filtra sanções falsas em JavaScript — API CGU ignora CPF e retorna todos os acordos de leniência
+  // Não tenta DELETE no banco para evitar problemas de RLS
+  const findings = allFindings.filter((f: any) =>
+    !(f.categoria === 'SANCAO' && f.titulo?.toLowerCase().startsWith('acordo de leni'))
+  )
+  const removed = allFindings.length - findings.length
+
   if (removed > 0) {
     const { score, nivel } = calcularScore(findings)
     const resumoAtual = checkRes.data.resumo || {}
     const novoResumo = {
       ...resumoAtual,
-      sancao:     findings.filter((f: any) => f.categoria === 'SANCAO').length,
-      judicial:   findings.filter((f: any) => f.categoria === 'JUDICIAL').length,
-      criminal:   findings.filter((f: any) => f.categoria === 'CRIMINAL').length,
-      trabalhista:findings.filter((f: any) => f.categoria === 'TRABALHISTA').length,
-      financeiro: findings.filter((f: any) => f.categoria === 'FINANCEIRO').length,
-      ambiental:  findings.filter((f: any) => f.categoria === 'AMBIENTAL').length,
-      midia:      findings.filter((f: any) => f.categoria === 'MIDIA').length,
-      total:      findings.length,
+      sancao:      findings.filter((f: any) => f.categoria === 'SANCAO').length,
+      judicial:    findings.filter((f: any) => f.categoria === 'JUDICIAL').length,
+      criminal:    findings.filter((f: any) => f.categoria === 'CRIMINAL').length,
+      trabalhista: findings.filter((f: any) => f.categoria === 'TRABALHISTA').length,
+      financeiro:  findings.filter((f: any) => f.categoria === 'FINANCEIRO').length,
+      ambiental:   findings.filter((f: any) => f.categoria === 'AMBIENTAL').length,
+      midia:       findings.filter((f: any) => f.categoria === 'MIDIA').length,
+      total:       findings.length,
     }
     await (supabase as any)
       .from('compliance_checks')

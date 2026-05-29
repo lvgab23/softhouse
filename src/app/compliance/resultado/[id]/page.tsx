@@ -361,8 +361,13 @@ export default function ResultadoPage() {
           variant="outline" size="sm" className="no-print text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
           onClick={async () => {
             if (!confirm('Excluir esta consulta permanentemente?')) return
-            await fetch(`/api/compliance/checks?id=${id}`, { method: 'DELETE' })
-            router.push('/compliance/dashboard')
+            const res = await fetch(`/api/compliance/checks?id=${id}`, { method: 'DELETE' })
+            if (res.ok) {
+              router.push('/compliance/dashboard')
+            } else {
+              const data = await res.json().catch(() => ({}))
+              alert(`Erro ao excluir: ${data.error || res.status}`)
+            }
           }}
         >
           <Trash2 className="h-4 w-4 mr-1" /> Excluir

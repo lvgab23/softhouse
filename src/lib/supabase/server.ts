@@ -26,3 +26,12 @@ export async function createClient() {
     }
   )
 }
+
+// Cliente admin (service role) — bypassa RLS para operações de escrita em cascata
+export function createAdminClient() {
+  return createServerClient<Database>(
+    clean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    clean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  )
+}
