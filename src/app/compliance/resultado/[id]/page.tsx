@@ -335,6 +335,7 @@ export default function ResultadoPage() {
 
   const cfg = RISCO_CONFIG[data.nivel_risco] || RISCO_CONFIG.LIMPO
   const midiaFindings = data.findings.filter(f => f.categoria === 'MIDIA')
+  const financeiro = data.findings.filter(f => f.categoria === 'FINANCEIRO')
   const filteredFindings = tab === 'Todos' ? data.findings : tab === 'NOTICIAS' ? midiaFindings : data.findings.filter(f => f.categoria === tab)
   const analise = gerarAnalise(data)
 
@@ -621,14 +622,6 @@ export default function ResultadoPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Análise de sanções */}
-            {analiseIA.analise_sancoes && sancoes.length > 0 && (
-              <div className="bg-red-50 border border-red-100 rounded-lg p-4">
-                <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Análise de Sanções</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{analiseIA.analise_sancoes}</p>
               </div>
             )}
 

@@ -20,14 +20,23 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 })
   }
 
-  // Remove direto no banco todos os registros falsos de Acordos de Leniência sem dados
-  // (API da CGU não filtra por CPF e retorna todos os acordos do banco com campos N/A)
-  const { count } = await (supabase as any)
+  // Remove registros falsos de Acordos de Leniência (API CGU ignora filtro CPF)
+  // Usa 'Acordo de Leni%' para evitar problemas de encoding com o caractere ê
+  const { data: deletedRows } = await (supabase as any)
     .from('compliance_findings')
     .delete()
     .eq('check_id', params.id)
-    .ilike('titulo', 'Acordo de Leniên%')
-    .select('id', { count: 'exact', head: true })
+    .ilike('titulo', 'Acordo de Leni%')
+    .select('id')
+
+  // Limpa também alertas falsos gerados por esses findings
+  if (deletedRows && deletedRows.length > 0) {
+    await (supabase as any)
+      .from('compliance_alerts')
+      .delete()
+      .eq('check_id', params.id)
+      .ilike('titulo', 'Acordo de Leni%')
+  }
 
   const findingsRes = await (supabase as any)
     .from('compliance_findings')
@@ -36,7 +45,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .order('severidade', { ascending: true })
 
   const findings: any[] = findingsRes.data || []
-  const removed = typeof count === 'number' ? count : 0
+  const removed = deletedRows?.length ?? 0
 
   // Se removeu registros falsos, recalcula score e atualiza o check
   if (removed > 0) {

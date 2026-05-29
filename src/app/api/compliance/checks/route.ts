@@ -28,9 +28,19 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = await createClient()
 
-  // Remove findings e alertas relacionados primeiro
-  await (supabase as any).from('compliance_findings').delete().eq('check_id', id).eq('user_id', user!.id)
-  await (supabase as any).from('compliance_alerts').delete().eq('check_id', id).eq('user_id', user!.id)
+  // Verifica ownership antes de deletar
+  const { data: owned } = await (supabase as any)
+    .from('compliance_checks')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', user!.id)
+    .single()
+
+  if (!owned) return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 })
+
+  // Remove findings e alertas relacionados (sem filtro user_id — essas tabelas usam check_id)
+  await (supabase as any).from('compliance_findings').delete().eq('check_id', id)
+  await (supabase as any).from('compliance_alerts').delete().eq('check_id', id)
 
   const { error: dbErr } = await (supabase as any)
     .from('compliance_checks')
