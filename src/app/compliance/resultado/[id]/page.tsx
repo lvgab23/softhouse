@@ -488,11 +488,11 @@ ${analiseIA.justificativa_score ? `<h2>Justificativa do Score</h2><p style="font
                 <h3 className="text-sm font-semibold text-gray-900">Análise com Inteligência Artificial</h3>
               </div>
               <button
-                onClick={downloadRelatorioIA}
+                onClick={downloadRelatorioPDF}
                 className="no-print flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 border border-violet-200 hover:border-violet-400 px-3 py-1.5 rounded-lg transition-colors bg-violet-50 hover:bg-violet-100"
-                title="Baixar relatório IA em TXT"
+                title="Baixar relatório IA em PDF"
               >
-                <FileText className="h-3.5 w-3.5" /> Baixar Relatório
+                <FileText className="h-3.5 w-3.5" /> Baixar PDF
               </button>
               {/* Score IA */}
               <div className="flex items-center gap-3">
