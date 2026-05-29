@@ -44,20 +44,44 @@ function parseProcV2(proc: any): Finding {
   const numero = proc.numero_cnj || proc.numero || proc.numero_processo || ''
   const fontes: any[] = proc.fontes || []
   const tribunal = fontes[0]?.sigla || fontes[0]?.nome || proc.tribunal_sigla || proc.tribunal || 'N/A'
-  const tituloPassivo = proc.titulo_polo_passivo || ''
-  const tituloAtivo = proc.titulo_polo_ativo || ''
-  const poloPassivo = !!tituloPassivo
-  const classe = tituloPassivo || tituloAtivo || proc.classe_processual || proc.classe || proc.tipo || 'Processo judicial'
-  const polo = poloPassivo ? 'PASSIVO' : tituloAtivo ? 'ATIVO' : 'INDEFINIDO'
+
+  // titulo_polo_* são nomes das partes, NÃO a classe do processo
+  const nomePassivo = (proc.titulo_polo_passivo || '').substring(0, 80)
+  const nomeAtivo   = (proc.titulo_polo_ativo   || '').substring(0, 80)
+
+  // Polo do envolvido pesquisado — campo direto se vier; fallback INDEFINIDO
+  const poloRaw = proc.polo_do_envolvido || proc.polo_envolvido || proc.polo || ''
+  const poloPassivo = poloRaw
+    ? /passiv|réu|reu|executad|reclamad|impetrad/i.test(poloRaw)
+    : false
+  const polo = poloRaw
+    ? (poloPassivo ? 'PASSIVO' : 'ATIVO')
+    : 'INDEFINIDO'
+
+  // Classe processual real do processo
+  const classe = proc.classe_processual || proc.classe || proc.tipo || proc.assunto || proc.area || 'Processo judicial'
+
   const dataUltima = proc.data_ultima_movimentacao || proc.ultima_movimentacao || null
   const criminal = isCriminal(classe)
   const ativo = isAtivo(dataUltima)
+
+  // Descrição com partes identificadas
+  const partes = [
+    nomeAtivo   ? `Autor: ${nomeAtivo}`   : null,
+    nomePassivo ? `Réu: ${nomePassivo}`   : null,
+  ].filter(Boolean).join(' | ')
 
   return {
     categoria: criminal ? 'CRIMINAL' : 'JUDICIAL',
     severidade: criminal && ativo ? 'CRITICO' : criminal ? 'ALTO' : (poloPassivo && ativo) ? 'MEDIO' : 'BAIXO',
     titulo: `${ativo ? 'Processo ativo' : 'Processo encerrado'}: ${classe}`,
-    descricao: `Nº ${numero || 'N/A'} | ${tribunal} | Polo: ${polo} | Última mov.: ${dataUltima || 'N/A'}`,
+    descricao: [
+      `Nº ${numero || 'N/A'}`,
+      tribunal,
+      polo !== 'INDEFINIDO' ? `Polo: ${polo}` : null,
+      partes || null,
+      `Última mov.: ${dataUltima || 'N/A'}`,
+    ].filter(Boolean).join(' | '),
     fonte: `Escavador — ${tribunal}`,
     fonte_url: proc.link || proc.url || 'https://www.escavador.com',
     data_ocorrencia: proc.data_inicio || proc.data_distribuicao || undefined,
