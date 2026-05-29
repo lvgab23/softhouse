@@ -176,6 +176,123 @@ function formatDoc(doc: string, tipo: string) {
   return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 }
 
+function parseJudicialDesc(descricao: string) {
+  const get = (prefix: string) => {
+    const part = descricao.split(' | ').find(p => p.trim().startsWith(prefix))
+    return part ? part.trim().slice(prefix.length).trim() : ''
+  }
+  const parts = descricao.split(' | ').map(p => p.trim())
+  const numero   = get('Nº ')
+  const polo     = get('Polo: ')
+  const autor    = get('Autor: ')
+  const reu      = get('Réu: ')
+  const ultimaMov = get('Última mov.: ')
+  const movs     = get('Movimentações: ')
+  const empresa  = get('Empresa: ')
+  // Tribunal: parte que não começa com nenhum prefixo conhecido e não é o número
+  const tribunal = parts.find(p =>
+    !p.startsWith('Nº ') && !p.startsWith('Polo:') && !p.startsWith('Autor:') &&
+    !p.startsWith('Réu:') && !p.startsWith('Última') && !p.startsWith('Movim') &&
+    !p.startsWith('Empresa:') && p.length > 0
+  ) || ''
+  return { numero, tribunal, polo, autor, reu, ultimaMov: ultimaMov || movs, empresa }
+}
+
+function JudicialCard({ f }: { f: Finding }) {
+  const sevCfg = SEV_CONFIG[f.severidade] || SEV_CONFIG.INFO
+  const { numero, tribunal, polo, autor, reu, ultimaMov, empresa } = parseJudicialDesc(f.descricao || '')
+  const classe = f.titulo.replace(/^Processo (ativo|encerrado): /, '')
+  const isAtivo = f.status_ocorrencia === 'ATIVO'
+  const poloColor = polo === 'PASSIVO' ? 'border-l-red-400' : polo === 'ATIVO' ? 'border-l-blue-400' : 'border-l-gray-300'
+
+  return (
+    <div className={`p-4 border-l-4 ${poloColor} hover:bg-gray-50 transition-colors`}>
+      {/* Linha 1: classe + badges */}
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        <Scale className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+        <span className="text-sm font-semibold text-gray-900">{classe || 'Processo judicial'}</span>
+        <Badge variant={sevCfg.variant}>{sevCfg.label}</Badge>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+          isAtivo ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+        }`}>{isAtivo ? 'ATIVO' : 'ENCERRADO'}</span>
+        {f.categoria === 'CRIMINAL' && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-900 text-white">CRIMINAL</span>
+        )}
+      </div>
+
+      {/* Grid de informações */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+        {numero && (
+          <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Número</p>
+            <p className="text-[11px] font-mono text-gray-700 break-all">{numero}</p>
+          </div>
+        )}
+        {tribunal && (
+          <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Tribunal</p>
+            <p className="text-[11px] font-semibold text-gray-700">{tribunal}</p>
+          </div>
+        )}
+        {polo && polo !== 'INDEFINIDO' && (
+          <div className={`rounded-lg px-2.5 py-1.5 ${
+            polo === 'PASSIVO' ? 'bg-red-50' : 'bg-blue-50'
+          }`}>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Polo do analisado</p>
+            <p className={`text-[11px] font-bold ${polo === 'PASSIVO' ? 'text-red-700' : 'text-blue-700'}`}>
+              {polo === 'PASSIVO' ? '⚠ RÉU / DEMANDADO' : '→ AUTOR / DEMANDANTE'}
+            </p>
+          </div>
+        )}
+        {ultimaMov && (
+          <div className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Última mov.</p>
+            <p className="text-[11px] text-gray-700">{ultimaMov}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Partes */}
+      {(autor || reu || empresa) && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {autor && (
+            <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1">
+              <TrendingUp className="h-3 w-3 text-blue-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-blue-700">Polo Ativo:</span>
+              <span className="text-[10px] text-blue-900">{autor}</span>
+            </div>
+          )}
+          {reu && (
+            <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1">
+              <TrendingDown className="h-3 w-3 text-red-500 flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-red-700">Polo Passivo:</span>
+              <span className="text-[10px] text-red-900">{reu}</span>
+            </div>
+          )}
+          {empresa && !autor && !reu && (
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
+              <Building2 className="h-3 w-3 text-gray-500 flex-shrink-0" />
+              <span className="text-[10px] text-gray-700">{empresa}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rodapé */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-[10px] text-gray-400">Fonte: {f.fonte}</span>
+        {f.data_ocorrencia && <span className="text-[10px] text-gray-400">Data: {f.data_ocorrencia}</span>}
+        {f.fonte_url && (
+          <a href={f.fonte_url} target="_blank" rel="noopener noreferrer"
+            className="text-[10px] text-blue-500 hover:underline no-print">
+            Ver no portal →
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function sanitizeAnaliseIA(raw: any): any {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const toStr = (v: any) => (v == null ? '' : String(v))
@@ -789,6 +906,9 @@ ${analiseIA.justificativa_score ? `<h2>Justificativa do Score</h2><p style="font
 
             {tab !== 'NOTICIAS' && <div className="divide-y divide-gray-50">
               {filteredFindings.map(f => {
+                if (f.categoria === 'JUDICIAL' || f.categoria === 'CRIMINAL') {
+                  return <JudicialCard key={f.id} f={f} />
+                }
                 const sevCfg = SEV_CONFIG[f.severidade] || SEV_CONFIG.INFO
                 const catCfg = CAT_CONFIG[f.categoria] || { label: f.categoria, icon: Info }
                 const CatIcon = catCfg.icon
