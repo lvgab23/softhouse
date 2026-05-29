@@ -14,6 +14,7 @@ import { checkSancoesInternacionais } from './engines/sancoes-internacionais'
 import { checkIBAMA } from './engines/ibama'
 import { checkCVM } from './engines/cvm'
 import { checkMidia } from './engines/midia'
+import { checkSocios } from './engines/socios'
 import { calcularScore } from './score'
 import { ComplianceResult, EngineResult, Finding } from './types'
 
@@ -50,11 +51,16 @@ export async function runCompliance(
     tasks.push(checkEscavador(documento, tipo, nome))
   }
 
-  // Novas fontes — sempre ativas (sem chave necessária para OFAC SDN, IBAMA e CVM)
+  // Fontes adicionais — sempre ativas
   tasks.push(checkSancoesInternacionais(documento, tipo, nome))
   tasks.push(checkIBAMA(documento, tipo))
   tasks.push(checkCVM(documento, tipo, nome))
   if (nome) tasks.push(checkMidia(nome, tipo))
+
+  // Para CPF: verifica empresas onde a pessoa é sócia e seus processos/sanções
+  if (tipo === 'CPF') {
+    tasks.push(checkSocios(documento))
+  }
 
   const settled = await Promise.allSettled(tasks)
   for (const r of settled) {

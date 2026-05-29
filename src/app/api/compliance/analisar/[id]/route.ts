@@ -51,15 +51,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const allFindings: any[] = findings || []
 
-    // Limita por categoria para não estourar o contexto
-    const judiciais  = priorizar(allFindings.filter(f => f.categoria === 'JUDICIAL'),   20)
-    const criminais  = priorizar(allFindings.filter(f => f.categoria === 'CRIMINAL'),    5)
-    const sancoes    = priorizar(allFindings.filter(f => f.categoria === 'SANCAO'),      8)
-    const financeiro = priorizar(allFindings.filter(f => f.categoria === 'FINANCEIRO'),  5)
-    const ambiental  = priorizar(allFindings.filter(f => f.categoria === 'AMBIENTAL'),   5)
-    const midia      = priorizar(allFindings.filter(f => f.categoria === 'MIDIA'),       5)
+    // Remove sanções falsas (acordos de leniência sem filtro CPF da API da CGU)
+    const filtered = allFindings.filter((f: any) =>
+      !(f.categoria === 'SANCAO' && f.titulo?.toLowerCase().startsWith('acordo de leni'))
+    )
 
-    const totalOriginal = allFindings.length
+    // Limita por categoria — mantém resposta dentro do max_tokens
+    const judiciais  = priorizar(filtered.filter(f => f.categoria === 'JUDICIAL'),   8)
+    const criminais  = priorizar(filtered.filter(f => f.categoria === 'CRIMINAL'),   5)
+    const sancoes    = priorizar(filtered.filter(f => f.categoria === 'SANCAO'),     5)
+    const financeiro = priorizar(filtered.filter(f => f.categoria === 'FINANCEIRO'), 3)
+    const ambiental  = priorizar(filtered.filter(f => f.categoria === 'AMBIENTAL'),  3)
+    const midia      = priorizar(filtered.filter(f => f.categoria === 'MIDIA'),      3)
+
+    const totalOriginal = filtered.length
     const totalEnviado  = judiciais.length + criminais.length + sancoes.length + financeiro.length + ambiental.length + midia.length
 
     const nome   = check.nome || 'Analisado'
@@ -127,8 +132,8 @@ Responda SOMENTE com JSON válido, sem texto antes ou depois:
     const anthropic = new Anthropic({ apiKey })
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     })
 

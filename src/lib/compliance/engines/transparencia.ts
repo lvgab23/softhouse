@@ -25,41 +25,44 @@ export async function checkTransparencia(documento: string, tipo: 'CPF' | 'CNPJ'
 
   const clean = documento.replace(/\D/g, '')
   const findings: Finding[] = []
-  const paramKey = tipo === 'CNPJ' ? 'cnpjSancionado' : 'cpfSancionado'
 
   try {
-    const [ceis, cnep] = await Promise.all([
-      fetchAPI('ceis', { [paramKey]: clean }, apiKey),
-      fetchAPI('cnep', { [paramKey]: clean }, apiKey),
-    ])
+    // CEIS e CNEP são cadastros de EMPRESAS — para CPF retornam resultados não filtrados (falso positivo)
+    // CPF só entra nessas listas como empresa representada, verificado via engine socios
+    if (tipo === 'CNPJ') {
+      const [ceis, cnep] = await Promise.all([
+        fetchAPI('ceis', { cnpjSancionado: clean }, apiKey),
+        fetchAPI('cnep', { cnpjSancionado: clean }, apiKey),
+      ])
 
-    if (Array.isArray(ceis)) {
-      for (const item of ceis) {
-        findings.push({
-          categoria: 'SANCAO',
-          severidade: 'CRITICO',
-          titulo: 'Constante no CEIS — Empresa Inidônea ou Suspensa',
-          descricao: `Sanção: ${item.tipoSancao || 'N/A'} | Órgão sancionador: ${item.orgaoSancionador?.nome || 'N/A'} | Vigência: ${item.dataInicioSancao || '?'} até ${item.dataFimSancao || 'indefinido'} | Fundamentação: ${item.fundamentacaoLegal || 'N/A'}`,
-          fonte: 'CGU — Portal da Transparência (CEIS)',
-          fonte_url: 'https://portaldatransparencia.gov.br/sancoes/consulta',
-          data_ocorrencia: item.dataInicioSancao,
-          status_ocorrencia: item.dataFimSancao ? 'ARQUIVADO' : 'ATIVO',
-        })
+      if (Array.isArray(ceis)) {
+        for (const item of ceis) {
+          findings.push({
+            categoria: 'SANCAO',
+            severidade: 'CRITICO',
+            titulo: 'Constante no CEIS — Empresa Inidônea ou Suspensa',
+            descricao: `Sanção: ${item.tipoSancao || 'N/A'} | Órgão sancionador: ${item.orgaoSancionador?.nome || 'N/A'} | Vigência: ${item.dataInicioSancao || '?'} até ${item.dataFimSancao || 'indefinido'} | Fundamentação: ${item.fundamentacaoLegal || 'N/A'}`,
+            fonte: 'CGU — Portal da Transparência (CEIS)',
+            fonte_url: 'https://portaldatransparencia.gov.br/sancoes/consulta',
+            data_ocorrencia: item.dataInicioSancao,
+            status_ocorrencia: item.dataFimSancao ? 'ARQUIVADO' : 'ATIVO',
+          })
+        }
       }
-    }
 
-    if (Array.isArray(cnep)) {
-      for (const item of cnep) {
-        findings.push({
-          categoria: 'SANCAO',
-          severidade: 'CRITICO',
-          titulo: 'Constante no CNEP — Empresa Punida (Lei Anticorrupção)',
-          descricao: `Penalidade: ${item.tipoPenalidade || 'N/A'} | Valor multa: ${item.valorMulta ? `R$ ${Number(item.valorMulta).toLocaleString('pt-BR')}` : 'N/A'} | Publicação DOU: ${item.dataPublicacaoDou || 'N/A'}`,
-          fonte: 'CGU — Portal da Transparência (CNEP)',
-          fonte_url: 'https://portaldatransparencia.gov.br/sancoes/consulta',
-          data_ocorrencia: item.dataPublicacaoDou,
-          status_ocorrencia: 'ATIVO',
-        })
+      if (Array.isArray(cnep)) {
+        for (const item of cnep) {
+          findings.push({
+            categoria: 'SANCAO',
+            severidade: 'CRITICO',
+            titulo: 'Constante no CNEP — Empresa Punida (Lei Anticorrupção)',
+            descricao: `Penalidade: ${item.tipoPenalidade || 'N/A'} | Valor multa: ${item.valorMulta ? `R$ ${Number(item.valorMulta).toLocaleString('pt-BR')}` : 'N/A'} | Publicação DOU: ${item.dataPublicacaoDou || 'N/A'}`,
+            fonte: 'CGU — Portal da Transparência (CNEP)',
+            fonte_url: 'https://portaldatransparencia.gov.br/sancoes/consulta',
+            data_ocorrencia: item.dataPublicacaoDou,
+            status_ocorrencia: 'ATIVO',
+          })
+        }
       }
     }
 
