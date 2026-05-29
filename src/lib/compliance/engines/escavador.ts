@@ -40,11 +40,50 @@ async function getResumoEnvolvido(cpfCnpj: string, apiKey: string): Promise<numb
   } catch { return null }
 }
 
+function parseProcV2(proc: any): Finding {
+  const numero = proc.numero_cnj || proc.numero || proc.numero_processo || ''
+  const fontes: any[] = proc.fontes || []
+  const tribunal = fontes[0]?.sigla || fontes[0]?.nome || proc.tribunal_sigla || proc.tribunal || 'N/A'
+  const tituloPassivo = proc.titulo_polo_passivo || ''
+  const tituloAtivo = proc.titulo_polo_ativo || ''
+  const poloPassivo = !!tituloPassivo
+  const classe = tituloPassivo || tituloAtivo || proc.classe_processual || proc.classe || proc.tipo || 'Processo judicial'
+  const polo = poloPassivo ? 'PASSIVO' : tituloAtivo ? 'ATIVO' : 'INDEFINIDO'
+  const dataUltima = proc.data_ultima_movimentacao || proc.ultima_movimentacao || null
+  const criminal = isCriminal(classe)
+  const ativo = isAtivo(dataUltima)
+
+  return {
+    categoria: criminal ? 'CRIMINAL' : 'JUDICIAL',
+    severidade: criminal && ativo ? 'CRITICO' : criminal ? 'ALTO' : (poloPassivo && ativo) ? 'MEDIO' : 'BAIXO',
+    titulo: `${ativo ? 'Processo ativo' : 'Processo encerrado'}: ${classe}`,
+    descricao: `Nº ${numero || 'N/A'} | ${tribunal} | Polo: ${polo} | Última mov.: ${dataUltima || 'N/A'}`,
+    fonte: `Escavador — ${tribunal}`,
+    fonte_url: proc.link || proc.url || 'https://www.escavador.com',
+    data_ocorrencia: proc.data_inicio || proc.data_distribuicao || undefined,
+    status_ocorrencia: ativo ? 'ATIVO' : 'ARQUIVADO',
+  }
+}
+
+function extractCursor(data: any): string | null {
+  // Tenta todos os formatos conhecidos de cursor/paginação
+  const direct = data?.cursor ?? data?.next_cursor ?? data?.next ?? null
+  if (direct && typeof direct === 'string') return direct
+  const meta = data?.meta?.cursor ?? data?.meta?.next_cursor ?? data?.meta?.next ?? null
+  if (meta && typeof meta === 'string') return meta
+  const links = data?.links?.next ?? null
+  if (links && typeof links === 'string') {
+    // Extrai cursor de URL "?cursor=abc123"
+    try { return new URL(links).searchParams.get('cursor') } catch {}
+  }
+  return null
+}
+
 async function getProcessosEnvolvidoV2(cpfCnpj: string, apiKey: string): Promise<Finding[]> {
   const findings: Finding[] = []
   let cursor: string | null = null
   let page = 0
-  const maxPages = 3 // até 300 processos (100 por página)
+  const maxPages = 5 // até 5 páginas
 
   do {
     const url = new URL(`${BASE_V2}/envolvido/processos`)
@@ -58,54 +97,21 @@ async function getProcessosEnvolvidoV2(cpfCnpj: string, apiKey: string): Promise
     if (!res.ok) break
 
     const data = await res.json()
-    // SDK v2: resposta tem campo "processos" (array) + "envolvido" (objeto)
-    const processos: any[] = data?.processos || data?.items || data?.data || []
-    // Cursor para próxima página
-    cursor = data?.cursor ?? data?.next_cursor ?? data?.meta?.cursor ?? null
 
-    for (const proc of processos) {
-      const numero = proc.numero_cnj || proc.numero || proc.numero_processo || ''
+    // Suporta: { processos: [] } | { items: [] } | { data: [] } | array direto
+    const lista: any[] = Array.isArray(data)
+      ? data
+      : (data?.processos || data?.items || data?.data || [])
 
-      // v2 retorna fontes como array [{nome, sigla}]
-      const fontes: any[] = proc.fontes || []
-      const tribunal = fontes[0]?.sigla || fontes[0]?.nome || proc.tribunal_sigla || proc.tribunal || 'N/A'
+    cursor = extractCursor(data)
 
-      // v2: titulo_polo_passivo = pessoa é ré/executada; titulo_polo_ativo = pessoa é autora
-      const tituloPassivo = proc.titulo_polo_passivo || ''
-      const tituloAtivo = proc.titulo_polo_ativo || ''
-      const poloPassivo = !!tituloPassivo
-      const classe = tituloPassivo || tituloAtivo || proc.classe_processual || proc.classe || proc.tipo || 'Processo judicial'
-      const polo = poloPassivo ? 'PASSIVO' : tituloAtivo ? 'ATIVO' : 'INDEFINIDO'
-
-      const dataUltima = proc.data_ultima_movimentacao || proc.ultima_movimentacao || null
-      const criminal = isCriminal(classe)
-      const ativo = isAtivo(dataUltima)
-
-      findings.push({
-        categoria: criminal ? 'CRIMINAL' : 'JUDICIAL',
-        severidade: criminal && ativo ? 'CRITICO' : criminal ? 'ALTO' : (poloPassivo && ativo) ? 'MEDIO' : 'BAIXO',
-        titulo: `${ativo ? 'Processo ativo' : 'Processo encerrado'}: ${classe}`,
-        descricao: `Nº ${numero || 'N/A'} | ${tribunal} | Polo: ${polo} | Última mov.: ${dataUltima || 'N/A'}`,
-        fonte: `Escavador — ${tribunal}`,
-        fonte_url: proc.link || proc.url || `https://www.escavador.com`,
-        data_ocorrencia: proc.data_inicio || proc.data_distribuicao || undefined,
-        status_ocorrencia: ativo ? 'ATIVO' : 'ARQUIVADO',
-      })
-    }
+    for (const proc of lista) findings.push(parseProcV2(proc))
 
     page++
-    if (!cursor || processos.length === 0) break
+    if (!cursor || lista.length === 0) break
   } while (page < maxPages)
 
-  // Deduplica por número de processo
-  const seen = new Set<string>()
-  return findings.filter(f => {
-    const m = f.descricao.match(/Nº ([\d\-\.\/]+)/)
-    if (!m || m[1] === 'N/A') return true
-    if (seen.has(m[1])) return false
-    seen.add(m[1])
-    return true
-  })
+  return findings
 }
 
 // Fallback v1 — usado se v2 não estiver disponível para a conta
@@ -197,19 +203,26 @@ export async function checkEscavador(documento: string, tipo: 'CPF' | 'CNPJ', no
       }
     }
 
-    // Busca completa via v2 (R$4,50 até 200 processos)
-    let findings: Finding[] = []
-    let fonte = 'v2'
+    // Roda v2 (por CPF) + v1 (por nome) em paralelo para máxima cobertura
+    // v2 encontra processos indexados com CPF; v1 encontra processos indexados por nome
+    const [v2Result, v1Result] = await Promise.allSettled([
+      getProcessosEnvolvidoV2(clean, apiKey),
+      nome ? getProcessosEnvolvidoV1(documento, tipo, nome, apiKey) : Promise.resolve([] as Finding[]),
+    ])
 
-    try {
-      findings = await getProcessosEnvolvidoV2(clean, apiKey)
-    } catch {
-      // Fallback para v1 se v2 não funcionar para esta conta
-      if (nome) {
-        findings = await getProcessosEnvolvidoV1(documento, tipo, nome, apiKey)
-        fonte = 'v1'
-      }
-    }
+    const v2Findings = v2Result.status === 'fulfilled' ? v2Result.value : []
+    const v1Findings = v1Result.status === 'fulfilled' ? v1Result.value : []
+
+    // Mescla e deduplica por número de processo
+    const all = [...v2Findings, ...v1Findings]
+    const seen = new Set<string>()
+    const findings = all.filter(f => {
+      const m = f.descricao.match(/Nº ([\d\-\.\/]+)/)
+      const key = (m && m[1] !== 'N/A') ? m[1] : f.titulo + f.fonte
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 
     return {
       engine: 'Escavador (Processos Judiciais)',
@@ -218,11 +231,11 @@ export async function checkEscavador(documento: string, tipo: 'CPF' | 'CNPJ', no
       metadata: {
         total_processos: findings.length,
         total_escavador: totalProcessos,
-        fonte,
+        v2: v2Findings.length,
+        v1: v1Findings.length,
       },
     }
   } catch (err: any) {
-    // Tenta v1 como último recurso
     if (nome) {
       try {
         const findings = await getProcessosEnvolvidoV1(documento, tipo, nome, apiKey)
