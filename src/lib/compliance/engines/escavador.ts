@@ -58,24 +58,34 @@ async function getProcessosEnvolvidoV2(cpfCnpj: string, apiKey: string): Promise
     if (!res.ok) break
 
     const data = await res.json()
-    const processos: any[] = data?.items || data?.processos || []
-    cursor = data?.cursor ?? data?.next_cursor ?? null
+    // SDK v2: resposta tem campo "processos" (array) + "envolvido" (objeto)
+    const processos: any[] = data?.processos || data?.items || data?.data || []
+    // Cursor para próxima página
+    cursor = data?.cursor ?? data?.next_cursor ?? data?.meta?.cursor ?? null
 
     for (const proc of processos) {
       const numero = proc.numero_cnj || proc.numero || proc.numero_processo || ''
-      const tribunal = proc.tribunal_sigla || proc.tribunal || proc.fonte || 'N/A'
-      const classe = proc.classe_processual || proc.classe || proc.titulo || proc.tipo || ''
-      const polo = (proc.polo_do_envolvido || proc.polo || '').toUpperCase()
+
+      // v2 retorna fontes como array [{nome, sigla}]
+      const fontes: any[] = proc.fontes || []
+      const tribunal = fontes[0]?.sigla || fontes[0]?.nome || proc.tribunal_sigla || proc.tribunal || 'N/A'
+
+      // v2: titulo_polo_passivo = pessoa é ré/executada; titulo_polo_ativo = pessoa é autora
+      const tituloPassivo = proc.titulo_polo_passivo || ''
+      const tituloAtivo = proc.titulo_polo_ativo || ''
+      const poloPassivo = !!tituloPassivo
+      const classe = tituloPassivo || tituloAtivo || proc.classe_processual || proc.classe || proc.tipo || 'Processo judicial'
+      const polo = poloPassivo ? 'PASSIVO' : tituloAtivo ? 'ATIVO' : 'INDEFINIDO'
+
       const dataUltima = proc.data_ultima_movimentacao || proc.ultima_movimentacao || null
       const criminal = isCriminal(classe)
       const ativo = isAtivo(dataUltima)
-      const poloRisco = polo === 'PASSIVO' || polo === 'RÉU' || polo === 'REU'
 
       findings.push({
         categoria: criminal ? 'CRIMINAL' : 'JUDICIAL',
-        severidade: criminal && ativo ? 'CRITICO' : criminal ? 'ALTO' : (poloRisco && ativo) ? 'MEDIO' : 'BAIXO',
-        titulo: `${ativo ? 'Processo ativo' : 'Processo encerrado'}: ${classe || 'Processo judicial'}`,
-        descricao: `Nº ${numero || 'N/A'} | ${tribunal}${polo ? ` | Polo: ${polo}` : ''} | Última mov.: ${dataUltima || 'N/A'}`,
+        severidade: criminal && ativo ? 'CRITICO' : criminal ? 'ALTO' : (poloPassivo && ativo) ? 'MEDIO' : 'BAIXO',
+        titulo: `${ativo ? 'Processo ativo' : 'Processo encerrado'}: ${classe}`,
+        descricao: `Nº ${numero || 'N/A'} | ${tribunal} | Polo: ${polo} | Última mov.: ${dataUltima || 'N/A'}`,
         fonte: `Escavador — ${tribunal}`,
         fonte_url: proc.link || proc.url || `https://www.escavador.com`,
         data_ocorrencia: proc.data_inicio || proc.data_distribuicao || undefined,
