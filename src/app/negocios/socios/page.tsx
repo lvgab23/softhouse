@@ -102,7 +102,7 @@ export default function SociosPage() {
     const { error } = editing
       ? await (supabase as any).from('socios').update(payload).eq('id', editing.id)
       : await (supabase as any).from('socios').insert({ ...payload, user_id: user.id })
-    if (error) { toast.error('Erro ao salvar sócio'); return }
+    if (error) { toast.error(`Erro: ${error.message}`); console.error(error); return }
     toast.success(editing ? 'Sócio atualizado!' : 'Sócio cadastrado!')
     setModalOpen(false)
     fetchData()
