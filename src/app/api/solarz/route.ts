@@ -271,6 +271,43 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // ── Debug: ver resposta bruta da API autenticada ─────────────────────
+    if (action === 'debug') {
+      const plant   = await publicGet('/usina', { uuid })
+      const plantId = plant.id as number | null
+      const today   = new Date().toISOString().slice(0, 10)
+
+      let tokenResult = 'sem credenciais configuradas'
+      let dayResult: any = null
+      let contextResult: any = null
+
+      if (process.env.SOLARZ_USERNAME) {
+        try {
+          const token = await getToken()
+          tokenResult = `token obtido (${token.slice(0, 20)}...)`
+
+          // Tenta buscar context para ver formato de retorno
+          contextResult = await authGet('/cliente/context')
+
+          if (plantId) {
+            dayResult = await authGet(`/api-sz/generation/day?usinaId=${plantId}&day=${today}&unitePortals=true`)
+          }
+        } catch (e: any) {
+          tokenResult = `ERRO: ${e.message}`
+        }
+      }
+
+      return NextResponse.json({
+        plant_id: plantId,
+        plant_name: plant.name,
+        uuid,
+        today,
+        token_status: tokenResult,
+        day_raw: dayResult,
+        context_raw: contextResult ? JSON.stringify(contextResult).slice(0, 500) : null,
+      })
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 
   } catch (err: any) {
