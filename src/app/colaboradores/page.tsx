@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Users, Plus, Copy, Check, Trash2, Shield, Eye, Edit3, Link2, KeyRound } from 'lucide-react'
+import { Users, Plus, Copy, Check, Trash2, Shield, Eye, Edit3, Link2, KeyRound, UserCheck } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
 import { Badge } from '@/components/ui/badge'
@@ -81,7 +81,7 @@ export default function ColaboradoresPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Form state
-  const [formMode, setFormMode]   = useState<'senha' | 'convite'>('senha')
+  const [formMode, setFormMode]   = useState<'senha' | 'convite' | 'email'>('email')
   const [formNome, setFormNome]   = useState('')
   const [formEmail, setFormEmail] = useState('')
   const [formSenha, setFormSenha] = useState('')
@@ -106,7 +106,7 @@ export default function ColaboradoresPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   function openModal() {
-    setFormMode('senha')
+    setFormMode('email')
     setFormNome('')
     setFormEmail('')
     setFormSenha('')
@@ -135,6 +135,32 @@ export default function ColaboradoresPage() {
     if (!formEmail.trim()) { toast.error('Informe o e-mail do colaborador'); return }
     if (formMode === 'senha' && formSenha.length < 6) { toast.error('Senha deve ter ao menos 6 caracteres'); return }
     setSaving(true)
+
+    if (formMode === 'email') {
+      const res = await fetch('/api/admin/add-colaborador-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formEmail.trim().toLowerCase(),
+          nivel: formNivel,
+          permissoes: formPerms,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Erro ao adicionar colaborador')
+        setSaving(false)
+        return
+      }
+      toast.success(data.reativado
+        ? `Acesso de ${data.nome} reativado!`
+        : `${data.nome} adicionado como colaborador!`
+      )
+      setSaving(false)
+      setShowModal(false)
+      fetchData()
+      return
+    }
 
     if (formMode === 'senha') {
       const res = await fetch('/api/admin/create-colaborador', {
@@ -339,17 +365,18 @@ export default function ColaboradoresPage() {
           <>
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancelar</Button>
             <Button onClick={handleSave} loading={saving}>
-              {formMode === 'senha' ? 'Criar Colaborador' : 'Gerar Convite'}
+              {formMode === 'email' ? 'Adicionar Colaborador' : formMode === 'senha' ? 'Criar Colaborador' : 'Gerar Convite'}
             </Button>
           </>
         }
       >
         <div className="space-y-5">
           {/* Mode toggle */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+          <div className="grid grid-cols-3 gap-2 p-1 bg-gray-100 rounded-lg">
             {([
-              { key: 'senha',   icon: KeyRound, label: 'Criar com senha',   desc: 'Você define a senha temporária' },
-              { key: 'convite', icon: Link2,    label: 'Link de convite',    desc: 'Colaborador cria a própria conta' },
+              { key: 'email',   icon: UserCheck, label: 'Conta existente', desc: 'Usuário já tem conta no sistema' },
+              { key: 'senha',   icon: KeyRound,  label: 'Criar com senha', desc: 'Você define a senha temporária' },
+              { key: 'convite', icon: Link2,     label: 'Link de convite', desc: 'Colaborador cria a própria conta' },
             ] as const).map(opt => (
               <button
                 key={opt.key}
@@ -456,7 +483,9 @@ export default function ColaboradoresPage() {
 
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs text-amber-700">
-              {formMode === 'senha'
+              {formMode === 'email'
+                ? 'A pessoa precisa já ter criado uma conta no sistema com este e-mail. O acesso é liberado imediatamente, sem necessidade de convite.'
+                : formMode === 'senha'
                 ? 'A conta será criada agora. Compartilhe o e-mail e a senha temporária com o colaborador — ele será obrigado a trocar a senha no primeiro acesso.'
                 : 'Um link de convite será gerado. Copie e envie para o colaborador — ele poderá criar uma conta e acessar apenas o que foi permitido.'}
             </p>
