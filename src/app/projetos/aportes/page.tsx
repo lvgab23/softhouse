@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { MetricCard } from '@/components/ui/metric-card'
 import { formatBRL, formatDate, formatShort } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 import { DollarSign, FolderOpen } from 'lucide-react'
 
@@ -344,7 +345,7 @@ export default function AportesPage() {
             {projetos.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </Select>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Valor (R$) *" type="number" step="0.01" error={errors.valor?.message} {...register('valor', { valueAsNumber: true })} />
+            <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
             <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />
           </div>
           <div className="grid grid-cols-2 gap-3">

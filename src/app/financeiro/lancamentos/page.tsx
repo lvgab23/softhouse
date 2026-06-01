@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -294,7 +295,7 @@ export default function LancamentosPage() {
           </div>
           <Input label="Descrição *" placeholder="Ex: Pagamento de aluguel..." error={errors.descricao?.message} {...register('descricao')} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Valor (R$) *" type="number" step="0.01" min="0" error={errors.valor?.message} {...register('valor')} />
+            <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
             <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />
           </div>
           <div className="grid grid-cols-2 gap-4">

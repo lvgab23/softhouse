@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -244,7 +245,7 @@ export default function RecebimentosPage() {
       >
         <form className="space-y-4">
           <Input label="Descrição *" placeholder="Ex: Aluguel recebido..." error={errors.descricao?.message} {...register('descricao')} />
-          <Input label="Valor (R$) *" type="number" step="0.01" min="0" error={errors.valor?.message} {...register('valor')} />
+          <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
           <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />
           <Input label="Categoria" placeholder="Ex: Aluguel, Dividendos..." {...register('categoria')} />
           <Select label="Conta Bancária" {...register('conta_id')}>

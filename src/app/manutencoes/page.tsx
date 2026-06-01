@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -189,7 +190,7 @@ export default function ManutencoesPage() {
             <option value="">Sem fornecedor</option>
             {fornecedores.map((f: any) => <option key={f.id} value={f.id}>{f.nome}</option>)}
           </Select>
-          <Input label="Custo (R$)" type="number" step="0.01" {...register('custo')} />
+          <CurrencyInput label="Custo (R$)" value={watch("custo")} onChange={v => setValue("custo", v as any)} />
           <Input label="Data de Realização" type="date" {...register('data_realizacao')} />
           <Input label="Próxima Manutenção" type="date" {...register('proxima_manutencao')} />
           <div className="col-span-2">

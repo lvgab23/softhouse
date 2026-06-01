@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { MetricCard } from '@/components/ui/metric-card'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const TIPOS = [
@@ -204,8 +205,8 @@ export default function InvestimentosPage() {
             {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </Select>
           <Input label="Instituição" placeholder="Ex: Banco Itaú" {...register('instituicao')} />
-          <Input label="Valor Investido (R$)" type="number" step="0.01" {...register('valor_investido', { valueAsNumber: true })} />
-          <Input label="Valor Atual (R$)" type="number" step="0.01" {...register('valor_atual', { valueAsNumber: true })} />
+          <CurrencyInput label="Valor Investido (R$)" value={watch("valor_investido")} onChange={v => setValue("valor_investido", v as any)} />
+          <CurrencyInput label="Valor Atual (R$)" value={watch("valor_atual")} onChange={v => setValue("valor_atual", v as any)} />
           <Input label="Rentabilidade (% a.a.)" type="number" step="0.01" placeholder="12.5" {...register('rentabilidade', { valueAsNumber: true })} />
           <Input label="Data do Investimento" type="date" {...register('data_investimento')} />
           <Input label="Vencimento" type="date" {...register('vencimento')} />

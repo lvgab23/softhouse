@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const TIPOS = [
@@ -86,7 +87,7 @@ export default function BensMoveiPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { tipo: 'automovel', status: 'ativo' },
   })
@@ -357,8 +358,8 @@ CREATE POLICY "Users manage own bens_moveis"
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Valores</p>
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Valor de Aquisição (R$)" type="number" step="0.01" {...register('valor_aquisicao')} />
-              <Input label="Valor Atual de Mercado (R$)" type="number" step="0.01" {...register('valor_atual')} />
+              <CurrencyInput label="Valor de Aquisição (R$)" value={watch('valor_aquisicao')} onChange={v => setValue('valor_aquisicao', v as any)} />
+              <CurrencyInput label="Valor Atual de Mercado (R$)" value={watch('valor_atual')} onChange={v => setValue('valor_atual', v as any)} />
               <Input label="Data de Aquisição" type="date" {...register('data_aquisicao')} />
             </div>
           </div>

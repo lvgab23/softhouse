@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const BANCOS = [
@@ -209,7 +210,7 @@ export default function ContasBancariasPage() {
             <Select label="Tipo de Conta" {...register('tipo')}>
               {TIPOS_CONTA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
-            <Input label="Saldo Inicial (R$)" type="number" step="0.01" {...register('saldo_inicial')} />
+            <CurrencyInput label="Saldo Inicial (R$)" value={watch("saldo_inicial")} onChange={v => setValue("saldo_inicial", v as any)} />
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="ativo" {...register('ativo')} className="w-4 h-4 rounded border-gray-300" />

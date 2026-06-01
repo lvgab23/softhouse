@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate, formatShort } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -146,7 +147,7 @@ export default function MovimentacoesPage() {
             <option value="">Sem patrimônio</option>
             {patrimonios.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </Select>
-          <Input label="Valor (R$) *" type="number" step="0.01" min="0" error={errors.valor?.message} {...register('valor')} />
+          <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
           <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />
           <Input label="Categoria" placeholder="Ex: Manutenção, Aluguel..." {...register('categoria')} />
           <Input label="Descrição" placeholder="Descrição da movimentação..." {...register('descricao')} />

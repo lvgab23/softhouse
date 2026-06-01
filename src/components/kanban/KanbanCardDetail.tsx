@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import type { FullKanbanCard, FullKanbanColumn, BoardType } from './KanbanFullBoard'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -114,8 +115,8 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
   const [tags, setTags]                 = useState<string[]>(card.tags || [])
   const [tagInput, setTagInput]         = useState('')
   const [relatedName, setRelatedName]   = useState(card.related_object_name || '')
-  const [valorEst, setValorEst]         = useState(card.valor_estimado?.toString() || '')
-  const [valorReal, setValorReal]       = useState(card.valor_real?.toString() || '')
+  const [valorEst, setValorEst]         = useState<number | null>(card.valor_estimado ?? null)
+  const [valorReal, setValorReal]       = useState<number | null>(card.valor_real ?? null)
   const [converting, setConverting]     = useState(false)
 
   // related data
@@ -254,14 +255,12 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
 
   // ── Valores financeiros ──────────────────────────────────────────────────────
   async function handleValorEstBlur() {
-    const v = valorEst ? parseFloat(valorEst) : null
-    if (v === card.valor_estimado) return
-    await saveField('valor_estimado', v)
+    if (valorEst === card.valor_estimado) return
+    await saveField('valor_estimado', valorEst)
   }
   async function handleValorRealBlur() {
-    const v = valorReal ? parseFloat(valorReal) : null
-    if (v === card.valor_real) return
-    await saveField('valor_real', v)
+    if (valorReal === card.valor_real) return
+    await saveField('valor_real', valorReal)
   }
 
   // ── Converter (pipeline → projeto/bem/negócio) ───────────────────────────────
@@ -985,21 +984,23 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
             <div className="space-y-1.5 pt-2 border-t border-gray-100">
               <label className="text-xs font-semibold text-gray-500 flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> Financeiro</label>
               <div className="space-y-1.5">
-                <div>
-                  <label className="text-[10px] text-gray-400">Valor estimado (R$)</label>
-                  <input type="number" step="0.01" value={valorEst} onChange={e => setValorEst(e.target.value)} onBlur={handleValorEstBlur}
-                    placeholder="0,00"
-                    className="w-full h-8 text-xs border border-gray-200 rounded-lg px-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-400">Valor real (R$)</label>
-                  <input type="number" step="0.01" value={valorReal} onChange={e => setValorReal(e.target.value)} onBlur={handleValorRealBlur}
-                    placeholder="0,00"
-                    className="w-full h-8 text-xs border border-gray-200 rounded-lg px-2.5 focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white" />
-                </div>
-                {valorEst && valorReal && (
-                  <div className={`rounded-lg px-2.5 py-1.5 ${parseFloat(valorReal) >= parseFloat(valorEst) ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                    <p className="text-[10px]">{parseFloat(valorReal) >= parseFloat(valorEst) ? '▲' : '▼'} Variação: {((parseFloat(valorReal) / parseFloat(valorEst) - 1) * 100).toFixed(1)}%</p>
+                <CurrencyInput
+                  label="Valor estimado"
+                  value={valorEst}
+                  onChange={v => setValorEst(v)}
+                  onBlur={handleValorEstBlur}
+                  className="h-8 text-xs"
+                />
+                <CurrencyInput
+                  label="Valor real"
+                  value={valorReal}
+                  onChange={v => setValorReal(v)}
+                  onBlur={handleValorRealBlur}
+                  className="h-8 text-xs"
+                />
+                {valorEst !== null && valorReal !== null && valorEst > 0 && (
+                  <div className={`rounded-lg px-2.5 py-1.5 ${valorReal >= valorEst ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                    <p className="text-[10px]">{valorReal >= valorEst ? '▲' : '▼'} Variação: {((valorReal / valorEst - 1) * 100).toFixed(1)}%</p>
                   </div>
                 )}
               </div>

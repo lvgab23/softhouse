@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -194,7 +195,7 @@ export default function AlugueisPage() {
           </div>
           <Input label="CPF" placeholder="000.000.000-00" {...register('inquilino_cpf')} />
           <Input label="Telefone" {...register('inquilino_telefone')} />
-          <Input label="Valor do Aluguel (R$) *" type="number" step="0.01" error={errors.valor_aluguel?.message} {...register('valor_aluguel')} />
+          <CurrencyInput label="Valor do Aluguel (R$) *" value={watch("valor_aluguel")} onChange={v => setValue("valor_aluguel", v as any)} />
           <Input label="Dia de Vencimento *" type="number" min="1" max="31" {...register('dia_vencimento')} />
           <Input label="Data de Início *" type="date" error={errors.data_inicio?.message} {...register('data_inicio')} />
           <Input label="Data de Término" type="date" {...register('data_fim')} />

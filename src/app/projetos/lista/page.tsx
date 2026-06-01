@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -138,7 +139,7 @@ export default function ProjetosListaPage() {
         <form className="space-y-4">
           <Input label="Nome *" error={errors.nome?.message} {...register('nome')} />
           <Input label="Descrição" {...register('descricao')} />
-          <Input label="Valor Total (R$)" type="number" step="0.01" {...register('valor_total')} />
+          <CurrencyInput label="Valor Total (R$)" value={watch("valor_total")} onChange={v => setValue("valor_total", v as any)} />
           <Input label="Data de Início" type="date" {...register('data_inicio')} />
           <Select label="Status" {...register('status')}>
             <option value="ativo">Ativo</option>

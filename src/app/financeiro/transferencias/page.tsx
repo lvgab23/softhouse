@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -175,7 +176,7 @@ export default function TransferenciasPage() {
             {contas.map((c: any) => <option key={c.id} value={c.id}>{c.banco} — {c.conta}</option>)}
           </Select>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Valor (R$) *" type="number" step="0.01" error={errors.valor?.message} {...register('valor')} />
+            <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
             <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />
           </div>
           <Input label="Descrição" placeholder="Motivo da transferência..." {...register('descricao')} />
