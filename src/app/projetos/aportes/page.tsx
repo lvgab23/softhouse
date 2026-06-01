@@ -248,16 +248,16 @@ export default function AportesPage() {
 
         {/* Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="Total Aportado" value={formatShort(totalAportes)} subtitle="no período filtrado" icon={DollarSign} />
+          <MetricCard label="Total Aportado" value={formatBRL(totalAportes)} subtitle="no período filtrado" icon={DollarSign} />
           <MetricCard
             label="Meu Aporte"
-            value={formatShort(meuTotal)}
+            value={formatBRL(meuTotal)}
             subtitle={totalAportes > 0 ? `${((meuTotal / totalAportes) * 100).toFixed(0)}% do total` : '—'}
             icon={User}
           />
           <MetricCard
             label="Aporte de Sócios"
-            value={formatShort(socioTotal)}
+            value={formatBRL(socioTotal)}
             subtitle={totalAportes > 0 ? `${((socioTotal / totalAportes) * 100).toFixed(0)}% do total` : '—'}
             icon={Users}
           />
