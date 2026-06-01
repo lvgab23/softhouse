@@ -66,9 +66,9 @@ export default function UsinasSolaresPage() {
   const [selectedUsinaId, setSelectedUsinaId] = useState<string | null>(null)
   const [showMap, setShowMap] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'ativa', tarifa_kwh: 0.85 },
+    defaultValues: { status: 'ativa', tarifa_kwh: 0.85, provider: 'none' },
   })
 
   const fetchData = useCallback(async () => {
@@ -172,7 +172,7 @@ export default function UsinasSolaresPage() {
       toast.success('Usina atualizada!')
     } else {
       const { error } = await supabase.from('usinas_solares').insert(payload)
-      if (error) { toast.error('Erro ao criar'); return }
+      if (error) { toast.error(`Erro ao criar: ${error.message}`); return }
       toast.success('Usina criada!')
     }
     setModalOpen(false)
