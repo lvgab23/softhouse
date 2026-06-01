@@ -31,7 +31,9 @@ const schema = z.object({
   receita_mensal: z.number().min(0).optional(),
   data_instalacao: z.string().optional(),
   status: z.enum(['ativa', 'inativa', 'manutencao']).default('ativa'),
+  provider: z.enum(['elekeeper', 'solarz', 'none']).default('none'),
   elekeeper_plant_uid: z.string().optional(),
+  solarz_uuid: z.string().optional(),
   tarifa_kwh: z.number().min(0).default(0.85),
   notas: z.string().optional(),
 })
@@ -93,16 +95,24 @@ export default function UsinasSolaresPage() {
   }, [])
 
   const fetchLiveData = useCallback(async (usinasList: any[]) => {
-    const integrated = usinasList.filter(u => u.elekeeper_plant_uid)
+    const integrated = usinasList.filter(u =>
+      (u.provider === 'elekeeper' && u.elekeeper_plant_uid) ||
+      (u.provider === 'solarz' && u.solarz_uuid) ||
+      (!u.provider && u.elekeeper_plant_uid) // retrocompatibilidade
+    )
     if (!integrated.length) return
     setLoadingLive(true)
     const results = await Promise.all(
-      integrated.map(u =>
-        fetch(`/api/elekeeper?action=status&plantUid=${encodeURIComponent(u.elekeeper_plant_uid)}&usinaId=${u.id}`)
+      integrated.map(u => {
+        const provider = u.provider || 'elekeeper'
+        const url = provider === 'solarz'
+          ? `/api/solarz?action=status&uuid=${encodeURIComponent(u.solarz_uuid)}&usinaId=${u.id}`
+          : `/api/elekeeper?action=status&plantUid=${encodeURIComponent(u.elekeeper_plant_uid)}&usinaId=${u.id}`
+        return fetch(url)
           .then(r => r.json())
           .then(res => ({ id: u.id, data: res.data || res }))
           .catch(() => ({ id: u.id, data: null }))
-      )
+      })
     )
     const map: Record<string, any> = {}
     for (const r of results) if (r.data && !r.data.error) map[r.id] = r.data
@@ -138,7 +148,9 @@ export default function UsinasSolaresPage() {
         receita_mensal: item.receita_mensal || undefined,
         data_instalacao: item.data_instalacao || '',
         status: item.status,
+        provider: item.provider || (item.elekeeper_plant_uid ? 'elekeeper' : 'none'),
         elekeeper_plant_uid: item.elekeeper_plant_uid || '',
+        solarz_uuid: item.solarz_uuid || '',
         tarifa_kwh: item.tarifa_kwh || 0.85,
         notas: item.notas || '',
       })
@@ -439,8 +451,20 @@ export default function UsinasSolaresPage() {
           <Input label="Receita Mensal Est. (R$)" type="number" step="0.01" placeholder="8000" {...register('receita_mensal', { valueAsNumber: true })} />
           <Input label="Data de Instalação" type="date" {...register('data_instalacao')} />
           <Input label="Tarifa (R$/kWh)" type="number" step="0.01" placeholder="0.85" {...register('tarifa_kwh', { valueAsNumber: true })} />
-          <div className="md:col-span-2">
-            <Input label="Plant UID Elekeeper (API)" placeholder="Ex: supermercadosantosilumi" {...register('elekeeper_plant_uid')} />
+          <div className="md:col-span-2 space-y-3 border border-gray-100 rounded-xl p-3 bg-gray-50/50">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Monitoramento em Tempo Real</p>
+            <Select label="Provedor de dados" {...register('provider')}>
+              <option value="none">Sem monitoramento</option>
+              <option value="elekeeper">Elekeeper (SAJ)</option>
+              <option value="solarz">SolarZ</option>
+            </Select>
+            {/* Campo condicional por provider */}
+            <div id="provider-fields">
+              <Input label="Plant UID (Elekeeper)" placeholder="Ex: supermercadosantosilumi" {...register('elekeeper_plant_uid')} />
+              <div className="mt-2">
+                <Input label="UUID da Usina (SolarZ)" placeholder="Ex: b01fc2b5-132a-4368-..." {...register('solarz_uuid')} />
+              </div>
+            </div>
           </div>
           <div className="md:col-span-2">
             <Textarea label="Notas" placeholder="Observações..." rows={2} {...register('notas')} />

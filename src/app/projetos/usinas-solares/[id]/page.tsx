@@ -66,41 +66,54 @@ export default function UsinaDetailPage() {
     if (usinaId) load()
   }, [usinaId, router])
 
+  // Helper: retorna URL correta baseada no provider
+  const apiUrl = useCallback((action: string, extra: Record<string, string> = {}) => {
+    if (!usina) return ''
+    const provider = usina.provider || (usina.elekeeper_plant_uid ? 'elekeeper' : 'none')
+    const base = provider === 'solarz' ? '/api/solarz' : '/api/elekeeper'
+    const params = new URLSearchParams({ action, usinaId: usinaId || '', ...extra })
+    if (provider === 'solarz' && usina.solarz_uuid) {
+      params.set('uuid', usina.solarz_uuid)
+    } else if (provider !== 'solarz' && usina.elekeeper_plant_uid) {
+      params.set('plantUid', usina.elekeeper_plant_uid)
+    }
+    return `${base}?${params.toString()}`
+  }, [usina, usinaId])
+
   // Status em tempo real
   const fetchStatus = useCallback(async () => {
     if (!usina) return
     setRefreshing(true)
-    const plantUid = usina.elekeeper_plant_uid || ''
-    // Se não tem integração configurada, usa mock direto
-    if (!plantUid) {
+    const provider = usina.provider || (usina.elekeeper_plant_uid ? 'elekeeper' : 'none')
+    const hasIntegration = provider === 'solarz' ? !!usina.solarz_uuid : !!usina.elekeeper_plant_uid
+    if (!hasIntegration) {
       setStatus(null)
       setIsMock(true)
       setLoading(false)
       setRefreshing(false)
       return
     }
-    const res = await fetch(`/api/elekeeper?action=status&plantUid=${encodeURIComponent(plantUid)}&usinaId=${usinaId}`).then(r => r.json())
+    const res = await fetch(apiUrl('status')).then(r => r.json())
     setStatus(res.data || res)
     setIsMock(!!res.mock)
     setLoading(false)
     setRefreshing(false)
-  }, [usina, usinaId])
+  }, [usina, usinaId, apiUrl])
 
   // Gráfico diário
   const fetchDaily = useCallback(async (date: string) => {
     if (!usina) return
     setLoadingPeriod(true)
-    const plantUid = usina.elekeeper_plant_uid || ''
-    const res = await fetch(`/api/elekeeper?action=daily&plantUid=${encodeURIComponent(plantUid)}&date=${date}&usinaId=${usinaId}`).then(r => r.json())
+    const res = await fetch(apiUrl('daily', { date })).then(r => r.json())
     setDaily(res.data || res)
     setLoadingPeriod(false)
-  }, [usina, usinaId])
+  }, [usina, usinaId, apiUrl])
 
   // Dados mensais (do banco)
   const fetchMes = useCallback(async (mes: string) => {
     if (!usinaId) return
     setLoadingPeriod(true)
-    const res = await fetch(`/api/elekeeper?action=mensal&usinaId=${usinaId}&mes=${mes}`).then(r => r.json())
+    const res = await fetch(apiUrl('mensal', { mes })).then(r => r.json())
     setMesEstimated(!!res.estimated)
     // Preenche todos os dias do mês (0 para dias sem leitura)
     const [y, m] = mes.split('-').map(Number)
@@ -119,7 +132,7 @@ export default function UsinaDetailPage() {
   const fetchAno = useCallback(async (ano: string) => {
     if (!usinaId) return
     setLoadingPeriod(true)
-    const res = await fetch(`/api/elekeeper?action=anual&usinaId=${usinaId}&ano=${ano}`).then(r => r.json())
+    const res = await fetch(apiUrl('anual', { ano })).then(r => r.json())
     setAnoEstimated(!!res.estimated)
     const months = (res.data || []).map((r: any, i: number) => ({
       ...r, label: MONTHS_PT[i],
@@ -131,7 +144,7 @@ export default function UsinaDetailPage() {
   // Alarmes
   const fetchAlarmes = useCallback(async () => {
     if (!usinaId) return
-    const res = await fetch(`/api/elekeeper?action=alarmes&usinaId=${usinaId}`).then(r => r.json())
+    const res = await fetch(apiUrl('alarmes')).then(r => r.json())
     setAlarmes(res.data || [])
   }, [usinaId])
 
@@ -166,7 +179,7 @@ export default function UsinaDetailPage() {
   }
 
   const resolverAlarme = async (id: string) => {
-    await fetch(`/api/elekeeper?action=resolver_alarme&alarmeId=${id}`)
+    await fetch(apiUrl('resolver_alarme', { alarmeId: id }))
     fetchAlarmes()
     toast.success('Alarme resolvido')
   }
