@@ -74,7 +74,7 @@ export default function UsinasSolaresPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const { data, error } = await supabase.from('usinas_solares').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('usinas_solares').select('*').order('created_at', { ascending: false })
     if (error) { setLoading(false); return }
 
     const list = data || []
