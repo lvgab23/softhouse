@@ -205,7 +205,11 @@ export default function UsinaDetailPage() {
   }
 
   // Métricas derivadas
-  const hasIntegration = !!usina?.elekeeper_plant_uid
+  const hasIntegration = !!(
+    (usina?.provider === 'solarz' && usina?.solarz_uuid) ||
+    (usina?.provider !== 'solarz' && usina?.elekeeper_plant_uid) ||
+    (!usina?.provider && usina?.elekeeper_plant_uid)
+  )
   const todayKwh  = status?.todayEnergy || 0
   const curPower  = status?.currentPower || 0
   const totalKwh  = status?.totalEnergy || 0
@@ -261,8 +265,8 @@ export default function UsinaDetailPage() {
           <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
             <Zap className="h-4 w-4 text-blue-500 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-800">Integração Elekeeper não configurada</p>
-              <p className="text-xs text-blue-600">Para monitorar dados em tempo real, edite a usina e adicione o Plant UID do Elekeeper.</p>
+              <p className="text-sm font-medium text-blue-800">Monitoramento em tempo real não configurado</p>
+              <p className="text-xs text-blue-600">Edite a usina, selecione o provedor (Elekeeper ou SolarZ) e adicione o ID da planta.</p>
             </div>
             <button onClick={() => setTab('config')} className="text-xs text-blue-600 underline flex-shrink-0">Configurar</button>
           </div>
