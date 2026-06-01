@@ -77,21 +77,15 @@ export default function UsinasSolaresPage() {
     const { data, error } = await supabase.from('usinas_solares').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
     if (error) { setLoading(false); return }
 
-    let list = data || []
-    if (list.length === 0) {
-      const { data: seeded } = await supabase.from('usinas_solares')
-        .insert({ ...CACHOEIRA_SEED, user_id: user.id }).select()
-      list = seeded || []
-    } else {
-      // Corrige localização antiga da Cachoeira (MG → GO)
-      const old = list.find((u: any) => u.nome === 'Usina Solar Cachoeira' && u.estado === 'MG')
-      if (old) {
-        await supabase.from('usinas_solares')
-          .update({ cidade: 'Cachoeira de Goiás', estado: 'GO' })
-          .eq('id', old.id)
-        old.cidade = 'Cachoeira de Goiás'
-        old.estado = 'GO'
-      }
+    const list = data || []
+    // Corrige localização antiga da Cachoeira (MG → GO)
+    const old = list.find((u: any) => u.nome === 'Usina Solar Cachoeira' && u.estado === 'MG')
+    if (old) {
+      await supabase.from('usinas_solares')
+        .update({ cidade: 'Cachoeira de Goiás', estado: 'GO' })
+        .eq('id', old.id)
+      old.cidade = 'Cachoeira de Goiás'
+      old.estado = 'GO'
     }
     setUsinas(list)
     setLoading(false)
