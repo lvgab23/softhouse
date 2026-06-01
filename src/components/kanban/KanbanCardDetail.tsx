@@ -499,15 +499,39 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
                 style={{ height: 'calc(92vh - 56px)' }}
               />
             )}
-            {previewAtt.type === 'link' && (
-              <iframe
-                src={getPreviewUrl(previewAtt)}
-                title={previewAtt.name}
-                className="w-full border-0"
-                style={{ height: 'calc(92vh - 56px)' }}
-                allow="autoplay"
-              />
-            )}
+            {previewAtt.type === 'link' && (() => {
+              const isDrive = previewAtt.url.includes('drive.google.com') || previewAtt.url.includes('docs.google.com')
+              if (isDrive) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-4 p-8 text-center" style={{ height: 'calc(92vh - 56px)' }}>
+                    <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
+                      <span className="text-2xl font-black text-blue-600">G</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-1">Arquivo do Google Drive</p>
+                      <p className="text-sm text-gray-500 max-w-xs">O Google não permite visualização incorporada para arquivos privados. Clique abaixo para abrir diretamente no Drive.</p>
+                    </div>
+                    <a
+                      href={previewAtt.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Abrir no Google Drive
+                    </a>
+                  </div>
+                )
+              }
+              return (
+                <iframe
+                  src={getPreviewUrl(previewAtt)}
+                  title={previewAtt.name}
+                  className="w-full border-0"
+                  style={{ height: 'calc(92vh - 56px)' }}
+                  allow="autoplay"
+                />
+              )
+            })()}
           </div>
         </div>
       </div>
