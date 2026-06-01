@@ -165,7 +165,16 @@ export default function UsinasSolaresPage() {
     const supabase = createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const payload = { ...data, user_id: user.id, updated_at: new Date().toISOString() }
+    const payload = {
+      ...data,
+      data_instalacao: data.data_instalacao || null,
+      elekeeper_plant_uid: data.elekeeper_plant_uid || null,
+      solarz_uuid: data.solarz_uuid || null,
+      localizacao: data.localizacao || null,
+      notas: data.notas || null,
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+    }
     if (editing) {
       const { error } = await supabase.from('usinas_solares').update(payload).eq('id', editing.id)
       if (error) { toast.error('Erro ao atualizar'); return }
