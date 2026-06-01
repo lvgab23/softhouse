@@ -146,31 +146,30 @@ export default function AportesPage() {
     if (data.vinculo_tipo === 'imovel' && !data.patrimonio_id) { toast.error('Selecione um imóvel'); return }
     if (data.vinculo_tipo === 'bem_movel' && !data.bem_movel_id) { toast.error('Selecione um bem móvel'); return }
 
-    const basePayload: any = {
+    const baseFields: any = {
       projeto_id:    data.vinculo_tipo === 'projeto'   ? data.projeto_id   : null,
       patrimonio_id: data.vinculo_tipo === 'imovel'    ? data.patrimonio_id : null,
       bem_movel_id:  data.vinculo_tipo === 'bem_movel' ? data.bem_movel_id  : null,
       valor: data.valor,
       data: data.data,
       tipo: data.tipo,
+      socio_nome: data.tipo === 'aporte_socio' ? (data.socio_nome || null) : null,
       banco: data.banco || null,
       descricao: data.descricao || null,
-      user_id: user.id,
     }
 
-    const wantSocioNome = data.tipo === 'aporte_socio' && !needsSocioMigration
-    const payload = wantSocioNome ? { ...basePayload, socio_nome: data.socio_nome || null } : basePayload
-
     if (editing) {
-      const { error } = await (supabase as any).from('aportes').update(payload).eq('id', editing.id)
+      const { error } = await (supabase as any).from('aportes').update(baseFields).eq('id', editing.id)
       if (error) { toast.error(`Erro ao atualizar: ${error.message}`); return }
       toast.success('Aporte atualizado!')
     } else {
-      const { error } = await (supabase as any).from('aportes').insert(payload)
+      const insertPayload = { ...baseFields, user_id: user.id }
+      const { error } = await (supabase as any).from('aportes').insert(insertPayload)
       if (error) {
-        if (wantSocioNome && (error.code === '42703' || error.message?.includes('socio_nome'))) {
+        if (error.code === '42703' || error.message?.includes('socio_nome')) {
           setNeedsSocioMigration(true)
-          const { error: e2 } = await (supabase as any).from('aportes').insert(basePayload)
+          const { socio_nome: _, ...withoutSocio } = insertPayload
+          const { error: e2 } = await (supabase as any).from('aportes').insert(withoutSocio)
           if (e2) { toast.error('Erro ao criar aporte'); return }
         } else {
           toast.error(`Erro ao criar aporte: ${error.message}`)
@@ -391,6 +390,7 @@ export default function AportesPage() {
       </div>
 
       <Modal
+        key={editing?.id || 'novo'}
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditing(null) }}
         title={editing ? 'Editar Aporte' : 'Novo Aporte'}
