@@ -1,7 +1,14 @@
 ﻿import { createClient } from '@supabase/supabase-js'
+import { config } from 'dotenv'
+config({ path: '.env.local' })
 
-const URL = 'https://pltrjmfcsyeqxrgxvdmz.supabase.co'
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsdHJqbWZjc3llcXhyZ3h2ZG16Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODYwNDU2NiwiZXhwIjoyMDk0MTgwNTY2fQ.cXVj4ub9aEmjsgF1ODoli-Pejax14TrBNdHqt3mKkws'
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!URL || !KEY) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local')
+  process.exit(1)
+}
 
 const sql = `
 CREATE TABLE IF NOT EXISTS bens_moveis (
