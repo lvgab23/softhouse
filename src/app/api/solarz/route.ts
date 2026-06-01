@@ -186,23 +186,24 @@ export async function GET(req: NextRequest) {
           const today   = new Date().toISOString().slice(0, 10)
           const dayData = await authGet(`/api-sz/generation/day?usinaId=${plantId}&day=${today}&unitePortals=true`)
 
-          // dayData pode ser array de {time, power} ou objeto com campo data
-          const points: any[] = Array.isArray(dayData)
-            ? dayData
-            : (dayData?.data || dayData?.points || dayData?.readings || [])
+          // Formato real: { dados: [{time, labeledValue: {value: kW}, identificar}] }
+          const points: any[] = dayData?.dados || dayData?.data || []
 
           if (points.length > 0) {
-            // Pega o último ponto não-zero como potência atual
-            const lastPoint = [...points].reverse().find((p: any) => (p.power ?? p.potencia ?? p.value ?? 0) > 0)
+            // Ordena por hora para pegar o mais recente
+            const sorted = [...points].sort((a, b) => (a.time > b.time ? 1 : -1))
+
+            // Potência atual = último ponto com valor > 0
+            const lastPoint = [...sorted].reverse().find((p: any) => (p.labeledValue?.value ?? 0) > 0)
             if (lastPoint) {
-              currentPower = parseFloat((lastPoint.power ?? lastPoint.potencia ?? lastPoint.value ?? 0).toFixed(2))
+              currentPower = parseFloat((lastPoint.labeledValue?.value ?? 0).toFixed(2))
             }
-            // Soma total do dia em kWh
-            const totalWh = points.reduce((s: number, p: any) => s + (p.power ?? p.potencia ?? p.value ?? 0), 0)
-            if (totalWh > 0) todayKwh = parseFloat((totalWh / 1000).toFixed(1)) // converte W → kWh aproximado
+
+            // Geração de hoje = integração (kW × 5min/60 = kWh por intervalo)
+            const totalKw = points.reduce((s: number, p: any) => s + (p.labeledValue?.value ?? 0), 0)
+            if (totalKw > 0) todayKwh = parseFloat((totalKw * (5 / 60)).toFixed(1))
           }
         } catch (e) {
-          // Autenticação falhou ou sem dados — usa valores públicos
           console.error('[solarz auth]', e)
         }
       }
@@ -235,16 +236,15 @@ export async function GET(req: NextRequest) {
       if (plantId && process.env.SOLARZ_USERNAME) {
         try {
           const dayData = await authGet(`/api-sz/generation/day?usinaId=${plantId}&day=${date}&unitePortals=true`)
-          const points: any[] = Array.isArray(dayData)
-            ? dayData
-            : (dayData?.data || dayData?.points || dayData?.readings || [])
+          const points: any[] = dayData?.dados || dayData?.data || []
 
           if (points.length > 0) {
-            const hours = points.map((p: any) => ({
-              hour:  p.time || p.hora || p.timestamp || '',
-              power: parseFloat((p.power ?? p.potencia ?? p.value ?? 0).toFixed(2)),
+            const sorted = [...points].sort((a: any, b: any) => (a.time > b.time ? 1 : -1))
+            const hours = sorted.map((p: any) => ({
+              hour:  p.time || '',
+              power: parseFloat((p.labeledValue?.value ?? 0).toFixed(2)),
             }))
-            const totalKwh = parseFloat((hours.reduce((s, h) => s + h.power, 0) / 1000).toFixed(1))
+            const totalKwh = parseFloat((hours.reduce((s, h) => s + h.power, 0) * (5 / 60)).toFixed(1))
             return NextResponse.json({ ok: true, data: { date, hours, totalKwh } })
           }
         } catch (e) {
