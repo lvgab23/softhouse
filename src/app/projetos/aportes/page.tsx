@@ -92,6 +92,27 @@ export default function AportesPage() {
   const tipoAtual = watch('tipo')
   const vinculoTipo = watch('vinculo_tipo')
 
+  // Reseta o formulário sempre que o item em edição muda
+  useEffect(() => {
+    if (editing) {
+      const vt = editing.projeto_id ? 'projeto' : editing.patrimonio_id ? 'imovel' : 'bem_movel'
+      reset({
+        vinculo_tipo: vt,
+        projeto_id: editing.projeto_id || '',
+        patrimonio_id: editing.patrimonio_id || '',
+        bem_movel_id: editing.bem_movel_id || '',
+        valor: editing.valor,
+        data: editing.data,
+        tipo: editing.tipo,
+        socio_nome: editing.socio_nome || '',
+        banco: editing.banco || '',
+        descricao: editing.descricao || '',
+      })
+    } else {
+      reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio', vinculo_tipo: 'projeto' })
+    }
+  }, [editing, reset])
+
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [a, p, pat, bm] = await Promise.all([
@@ -159,8 +180,13 @@ export default function AportesPage() {
     }
 
     if (editing) {
-      const { error } = await (supabase as any).from('aportes').update(baseFields).eq('id', editing.id)
+      const { data: updated, error } = await (supabase as any)
+        .from('aportes').update(baseFields).eq('id', editing.id).select()
       if (error) { toast.error(`Erro ao atualizar: ${error.message}`); return }
+      if (!updated || updated.length === 0) {
+        toast.error('Sem permissão para editar este aporte.')
+        return
+      }
       toast.success('Aporte atualizado!')
     } else {
       const insertPayload = { ...baseFields, user_id: user.id }
