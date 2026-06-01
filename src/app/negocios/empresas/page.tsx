@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Building2, Search, X, Pencil, Trash2, Globe } from 'lucide-react'
+import { Plus, Building2, Search, X, Pencil, Trash2, Globe, Users2, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
@@ -80,6 +80,12 @@ export default function EmpresasPage() {
   const [deleteModal, setDeleteModal] = useState<any | null>(null)
   const [editing, setEditing] = useState<any | null>(null)
   const [cnpjDisplay, setCnpjDisplay] = useState('')
+
+  // Detail modal
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailEmpresa, setDetailEmpresa] = useState<any | null>(null)
+  const [detailSocios, setDetailSocios] = useState<any[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -164,6 +170,20 @@ export default function EmpresasPage() {
     const matchFase = !filterFase || e.fase === filterFase
     return matchSearch && matchStatus && matchFase
   })
+
+  const openDetail = async (emp: any) => {
+    setDetailEmpresa(emp)
+    setDetailOpen(true)
+    setDetailLoading(true)
+    const supabase = createClient()
+    const { data } = await (supabase as any)
+      .from('socios')
+      .select('*')
+      .eq('empresa_id', emp.id)
+      .order('participacao', { ascending: false })
+    setDetailSocios(data || [])
+    setDetailLoading(false)
+  }
 
   const calcROI = (inv?: number, ret?: number) => {
     if (!inv || !ret || inv === 0) return null
@@ -256,7 +276,7 @@ export default function EmpresasPage() {
                     const roi = calcROI(emp.valor_investimento, emp.valor_retorno)
                     const cnpjFmt = emp.cnpj ? formatCNPJ(emp.cnpj) : '—'
                     return (
-                      <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openDetail(emp)}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -306,13 +326,13 @@ export default function EmpresasPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => openModal(emp)}
+                              onClick={e => { e.stopPropagation(); openModal(emp) }}
                               className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              onClick={() => setDeleteModal(emp)}
+                              onClick={e => { e.stopPropagation(); setDeleteModal(emp) }}
                               className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -331,6 +351,104 @@ export default function EmpresasPage() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {detailOpen && detailEmpresa && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDetailOpen(false)} />
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-8">
+
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-slate-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">{detailEmpresa.nome}</h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {detailEmpresa.setor && <span className="text-xs text-gray-400">{detailEmpresa.setor}</span>}
+                    {detailEmpresa.cnpj && <span className="text-xs text-gray-400 font-mono">{formatCNPJ(detailEmpresa.cnpj)}</span>}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setDetailOpen(false)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Métricas */}
+            <div className="grid grid-cols-3 gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+              <div className="text-center">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Sócios</p>
+                <p className="text-lg font-bold text-gray-900">{detailSocios.length}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">% Total</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {detailSocios.reduce((s, a) => s + (a.participacao || 0), 0).toFixed(1)}%
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Disponível</p>
+                <p className="text-lg font-bold text-green-600">
+                  {Math.max(0, 100 - detailSocios.reduce((s, a) => s + (a.participacao || 0), 0)).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            {/* Lista de sócios */}
+            <div className="px-6 py-4 max-h-[50vh] overflow-y-auto">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Participação Societária
+              </p>
+              {detailLoading ? (
+                <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />)}</div>
+              ) : detailSocios.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">Nenhum sócio cadastrado nesta empresa.</p>
+              ) : (
+                <div className="space-y-2">
+                  {detailSocios.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 text-sm">
+                          {s.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{s.nome}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {s.tipo === 'socio' ? 'Sócio' : s.tipo === 'investidor' ? 'Investidor' : s.tipo === 'administrador' ? 'Administrador' : 'Consultor'}
+                            {s.cargo ? ` · ${s.cargo}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-gray-900">{s.participacao != null ? `${s.participacao}%` : '—'}</p>
+                        {detailEmpresa.valor_investimento && s.participacao && (
+                          <p className="text-[10px] text-gray-400">
+                            {formatBRL(detailEmpresa.valor_investimento * s.participacao / 100)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-between">
+              <button
+                onClick={() => { setDetailOpen(false); openModal(detailEmpresa) }}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Editar Empresa
+              </button>
+              <Button variant="outline" size="sm" onClick={() => setDetailOpen(false)}>Fechar</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

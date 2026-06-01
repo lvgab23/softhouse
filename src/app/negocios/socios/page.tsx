@@ -46,6 +46,7 @@ export default function SociosPage() {
   const [editing, setEditing] = useState<any | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [empresaFilter, setEmpresaFilter] = useState('')
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -119,8 +120,11 @@ export default function SociosPage() {
     fetchData()
   }
 
-  const ativos = socios.filter(s => s.status === 'ativo')
-  const totalParticipacao = socios.reduce((s, p) => s + (p.participacao || 0), 0)
+  const filteredSocios = empresaFilter
+    ? socios.filter(s => s.empresa_id === empresaFilter)
+    : socios
+  const ativos = filteredSocios.filter(s => s.status === 'ativo')
+  const totalParticipacao = filteredSocios.reduce((s, p) => s + (p.participacao || 0), 0)
 
   const tipoConfig: Record<string, { label: string; variant: any }> = {
     socio: { label: 'Sócio', variant: 'info' },
@@ -138,6 +142,23 @@ export default function SociosPage() {
       </Topbar>
 
       <div className="p-6 space-y-5">
+        {/* Filtro por empresa */}
+        <div className="flex items-center gap-3">
+          <select
+            value={empresaFilter}
+            onChange={e => setEmpresaFilter(e.target.value)}
+            className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+          >
+            <option value="">Todas as empresas</option>
+            {empresas.map((e: any) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+          {empresaFilter && (
+            <button onClick={() => setEmpresaFilter('')} className="text-xs text-gray-400 hover:text-gray-600">
+              Limpar filtro
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <MetricCard label="Total de Sócios" value={String(socios.length)} subtitle="cadastrados" icon={Users2} />
           <MetricCard label="Sócios Ativos" value={String(ativos.length)} subtitle="em atividade" icon={Building2} />
@@ -146,8 +167,8 @@ export default function SociosPage() {
 
         {loading ? (
           <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-white rounded-xl animate-pulse" />)}</div>
-        ) : socios.length === 0 ? (
-          <EmptyState title="Nenhum sócio cadastrado" action={{ label: 'Novo Sócio', onClick: openCreate }} />
+        ) : filteredSocios.length === 0 ? (
+          <EmptyState title="Nenhum sócio encontrado" action={{ label: 'Novo Sócio', onClick: openCreate }} />
         ) : (
           <div className="bg-white rounded-xl border border-black/[0.08] overflow-hidden">
             <table className="w-full text-sm">
@@ -163,10 +184,10 @@ export default function SociosPage() {
                 </tr>
               </thead>
               <tbody>
-                {socios.map((s: any, i: number) => {
+                {filteredSocios.map((s: any, i: number) => {
                   const tc = tipoConfig[s.tipo] || tipoConfig.socio
                   return (
-                    <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${i === socios.length - 1 ? 'border-b-0' : ''}`}>
+                    <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${i === filteredSocios.length - 1 ? 'border-b-0' : ''}`}>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{s.nome}</p>
                         {s.email && <p className="text-[10px] text-gray-400">{s.email}</p>}
