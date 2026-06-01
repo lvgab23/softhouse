@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/api-auth'
 
-const BASE = 'https://app.solarz.com.br/shareable'
+const BASE        = 'https://app.solarz.com.br'
+const BASE_PUBLIC = `${BASE}/shareable`
+const BASE_AUTH   = `${BASE}/api-sz`
 
 const clean = (s: string = '') => s.replace(/^﻿/, '').replace(/[^\x20-\x7E]/g, '').trim()
 
@@ -13,40 +15,60 @@ function sbAdmin() {
   )
 }
 
-async function fetchSolarZ(path: string, uuid: string) {
-  const res = await fetch(`${BASE}${path}?uuid=${uuid}`, {
-    headers: { 'Accept': 'application/json' },
-    next: { revalidate: 300 }, // cache 5 min
+// ── Token cache ──────────────────────────────────────────────────────────────
+let cachedToken  = ''
+let tokenExpiry  = 0
+
+async function getToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken
+
+  const username = process.env.SOLARZ_USERNAME
+  const password = process.env.SOLARZ_PASSWORD
+  if (!username || !password) throw new Error('SOLARZ_USERNAME ou SOLARZ_PASSWORD não configurados')
+
+  const res = await fetch(`${BASE}/cliente/authenticate`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body:    JSON.stringify({ username, password }),
   })
-  if (!res.ok) throw new Error(`SolarZ ${path} error: ${res.status}`)
+  const json = await res.json()
+  if (json.error || !json.token) throw new Error(json.error || 'SolarZ: login falhou')
+
+  cachedToken = json.token
+  tokenExpiry = Date.now() + 55 * 60 * 1000 // 55 min
+  return cachedToken
+}
+
+async function authGet(path: string) {
+  const token = await getToken()
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+  })
   return res.json()
 }
 
+async function publicGet(path: string, params: Record<string, string> = {}) {
+  const qs  = new URLSearchParams(params).toString()
+  const url = `${BASE_PUBLIC}${path}${qs ? '?' + qs : ''}`
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } })
+  return res.json()
+}
+
+// ── Persiste leitura + alarmes ───────────────────────────────────────────────
 async function persistReading(usinaId: string, kwh: number, status: string) {
-  if (!usinaId || !kwh) return
-  const sb = sbAdmin()
+  if (!usinaId) return
+  const sb   = sbAdmin()
   const hoje = new Date().toISOString().slice(0, 10)
-  await sb.from('usinas_solares_leituras').upsert({
-    usina_id: usinaId,
-    data: hoje,
-    kwh,
-    source: 'solarz',
-  }, { onConflict: 'usina_id,data' })
-
+  await sb.from('usinas_solares_leituras').upsert(
+    { usina_id: usinaId, data: hoje, kwh, source: 'solarz' },
+    { onConflict: 'usina_id,data' }
+  )
   if (status === 'offline') {
-    const { data: alarmeExistente } = await sb
-      .from('usinas_solares_alarmes')
-      .select('id')
-      .eq('usina_id', usinaId)
-      .eq('tipo', 'offline')
-      .eq('ativo', true)
-      .maybeSingle()
-
-    if (!alarmeExistente) {
+    const { data: ex } = await sb.from('usinas_solares_alarmes')
+      .select('id').eq('usina_id', usinaId).eq('tipo', 'offline').eq('ativo', true).maybeSingle()
+    if (!ex) {
       await sb.from('usinas_solares_alarmes').insert({
-        usina_id: usinaId,
-        tipo: 'offline',
-        severidade: 'critical',
+        usina_id: usinaId, tipo: 'offline', severidade: 'critical',
         descricao: `Usina ficou offline em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
       })
     }
@@ -57,62 +79,52 @@ async function persistReading(usinaId: string, kwh: number, status: string) {
   }
 }
 
+// ── GET ──────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const { error: authError } = await requireAuth()
   if (authError) return authError
 
   const { searchParams } = new URL(req.url)
   const action  = searchParams.get('action') || 'status'
-  const uuid    = searchParams.get('uuid') || ''
+  const uuid    = searchParams.get('uuid')    || ''
   const usinaId = searchParams.get('usinaId') || ''
-  const mes     = searchParams.get('mes') || new Date().toISOString().slice(0, 7)
-  const ano     = searchParams.get('ano') || new Date().getFullYear().toString()
+  const mes     = searchParams.get('mes')     || new Date().toISOString().slice(0, 7)
+  const ano     = searchParams.get('ano')     || new Date().getFullYear().toString()
+  const date    = searchParams.get('date')    || new Date().toISOString().slice(0, 10)
 
   if (!uuid) return NextResponse.json({ error: 'uuid required' }, { status: 400 })
 
   try {
-    // ── Leituras do banco ────────────────────────────────────────────────────
+    // ── Leituras do banco ──────────────────────────────────────────────────
     if (action === 'mensal' && usinaId) {
       const sb = sbAdmin()
       const { data } = await sb.from('usinas_solares_leituras')
-        .select('data, kwh')
-        .eq('usina_id', usinaId)
-        .gte('data', `${mes}-01`)
-        .lte('data', `${mes}-31`)
-        .order('data')
+        .select('data, kwh').eq('usina_id', usinaId)
+        .gte('data', `${mes}-01`).lte('data', `${mes}-31`).order('data')
 
-      if (data && data.length >= 3) {
-        return NextResponse.json({ ok: true, data })
-      }
+      if (data && data.length >= 3) return NextResponse.json({ ok: true, data })
 
-      // Fallback: estima distribuição baseada no total do mês
-      const gen = await fetchSolarZ('/generations/usina', uuid)
-      const monthTotal = gen.essaMes || 0
-      const [y, m] = mes.split('-').map(Number)
+      // Fallback: distribui o total do mês
+      const gen = await publicGet('/generations/usina', { uuid })
+      const monthTotal  = gen.essaMes || 0
+      const [y, m]      = mes.split('-').map(Number)
       const daysInMonth = new Date(y, m, 0).getDate()
-      const today = new Date()
-      const isCurrentMonth = today.getFullYear() === y && today.getMonth() + 1 === m
-      const daysToShow = isCurrentMonth ? today.getDate() : daysInMonth
-      const dailyAvg = daysToShow > 0 ? monthTotal / daysToShow : 0
-
-      const estimated = Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1
-        return {
-          data: `${mes}-${String(day).padStart(2, '0')}`,
-          kwh: day <= daysToShow ? parseFloat((dailyAvg * (0.85 + Math.random() * 0.3)).toFixed(1)) : 0,
-        }
-      })
+      const today       = new Date()
+      const isCurrMonth = today.getFullYear() === y && today.getMonth() + 1 === m
+      const daysToShow  = isCurrMonth ? today.getDate() : daysInMonth
+      const dailyAvg    = daysToShow > 0 ? monthTotal / daysToShow : 0
+      const estimated   = Array.from({ length: daysInMonth }, (_, i) => ({
+        data: `${mes}-${String(i + 1).padStart(2, '0')}`,
+        kwh:  i + 1 <= daysToShow ? parseFloat((dailyAvg * (0.85 + Math.random() * 0.3)).toFixed(1)) : 0,
+      }))
       return NextResponse.json({ ok: true, data: estimated, estimated: true })
     }
 
     if (action === 'anual' && usinaId) {
       const sb = sbAdmin()
       const { data } = await sb.from('usinas_solares_leituras')
-        .select('data, kwh')
-        .eq('usina_id', usinaId)
-        .gte('data', `${ano}-01-01`)
-        .lte('data', `${ano}-12-31`)
-        .order('data')
+        .select('data, kwh').eq('usina_id', usinaId)
+        .gte('data', `${ano}-01-01`).lte('data', `${ano}-12-31`).order('data')
 
       if (data && data.length > 0) {
         const byMonth: Record<string, number> = {}
@@ -127,18 +139,15 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ ok: true, data: meses })
       }
 
-      // Fallback: distribui o total anual por curva solar
-      const gen = await fetchSolarZ('/generations/usina', uuid)
-      const yearTotal = gen.essaAno || 0
-      const SOLAR_CURVE = [1.05,1.00,0.95,0.85,0.75,0.68,0.70,0.78,0.88,0.97,1.05,1.10]
-      const curMonth = parseInt(ano) === new Date().getFullYear() ? new Date().getMonth() : 11
-      const pastCurve = SOLAR_CURVE.slice(0, curMonth + 1)
-      const pastSum = pastCurve.reduce((a, b) => a + b, 0)
-      const meses = Array.from({ length: 12 }, (_, i) => ({
+      const gen = await publicGet('/generations/usina', { uuid })
+      const yearTotal  = gen.essaAno || 0
+      const CURVE      = [1.05,1.00,0.95,0.85,0.75,0.68,0.70,0.78,0.88,0.97,1.05,1.10]
+      const curMonth   = parseInt(ano) === new Date().getFullYear() ? new Date().getMonth() : 11
+      const pastCurve  = CURVE.slice(0, curMonth + 1)
+      const pastSum    = pastCurve.reduce((a, b) => a + b, 0)
+      const meses      = Array.from({ length: 12 }, (_, i) => ({
         mes: `${ano}-${String(i + 1).padStart(2, '0')}`,
-        kwh: i <= curMonth && pastSum > 0
-          ? parseFloat((yearTotal * (SOLAR_CURVE[i] / pastSum)).toFixed(1))
-          : 0,
+        kwh: i <= curMonth && pastSum > 0 ? parseFloat((yearTotal * (CURVE[i] / pastSum)).toFixed(1)) : 0,
       }))
       return NextResponse.json({ ok: true, data: meses, estimated: true })
     }
@@ -151,25 +160,57 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, data: data || [] })
     }
 
-    // ── Status em tempo real ─────────────────────────────────────────────────
+    // ── Status em tempo real (com autenticação) ────────────────────────────
     if (action === 'status') {
+      // 1. Dados públicos (geração acumulada + eco)
       const [plant, gen, currently, eco] = await Promise.all([
-        fetchSolarZ('/usina', uuid),
-        fetchSolarZ('/generations/usina', uuid),
-        fetchSolarZ('/currently/usina', uuid),
-        fetchSolarZ('/eco', uuid),
+        publicGet('/usina', { uuid }),
+        publicGet('/generations/usina', { uuid }),
+        publicGet('/currently/usina', { uuid }),
+        publicGet('/eco', { uuid }),
       ])
 
-      const isOnline = currently?.status?.codigo === 0
-      const todayKwh = gen.ontem || 0
-      const monthKwh = gen.essaMes || 0
-      const yearKwh  = gen.essaAno || 0
-      const totalKwh = gen.ultimos365Dias || 0
+      const plantId    = plant.id as number | null
+      const isOnline   = currently?.status?.codigo === 0
+      const yesterdayKwh = gen.ontem    || 0
+      const monthKwh   = gen.essaMes    || 0
+      const yearKwh    = gen.essaAno    || 0
+      const totalKwh   = gen.ultimos365Dias || 0
+
+      // 2. Potência atual via API autenticada
+      let currentPower = 0
+      let todayKwh     = yesterdayKwh
+
+      if (plantId && process.env.SOLARZ_USERNAME) {
+        try {
+          const today   = new Date().toISOString().slice(0, 10)
+          const dayData = await authGet(`/api-sz/generation/day?usinaId=${plantId}&day=${today}&unitePortals=true`)
+
+          // dayData pode ser array de {time, power} ou objeto com campo data
+          const points: any[] = Array.isArray(dayData)
+            ? dayData
+            : (dayData?.data || dayData?.points || dayData?.readings || [])
+
+          if (points.length > 0) {
+            // Pega o último ponto não-zero como potência atual
+            const lastPoint = [...points].reverse().find((p: any) => (p.power ?? p.potencia ?? p.value ?? 0) > 0)
+            if (lastPoint) {
+              currentPower = parseFloat((lastPoint.power ?? lastPoint.potencia ?? lastPoint.value ?? 0).toFixed(2))
+            }
+            // Soma total do dia em kWh
+            const totalWh = points.reduce((s: number, p: any) => s + (p.power ?? p.potencia ?? p.value ?? 0), 0)
+            if (totalWh > 0) todayKwh = parseFloat((totalWh / 1000).toFixed(1)) // converte W → kWh aproximado
+          }
+        } catch (e) {
+          // Autenticação falhou ou sem dados — usa valores públicos
+          console.error('[solarz auth]', e)
+        }
+      }
 
       const result = {
         plantName:    plant.name || 'Usina SolarZ',
         status:       isOnline ? 'online' : 'offline',
-        currentPower: 0, // não disponível na API pública
+        currentPower,
         todayEnergy:  todayKwh,
         monthEnergy:  monthKwh,
         yearEnergy:   yearKwh,
@@ -182,28 +223,49 @@ export async function GET(req: NextRequest) {
         provider:     'solarz',
       }
 
-      if (usinaId) {
-        persistReading(usinaId, todayKwh, result.status).catch(() => {})
-      }
-
+      if (usinaId) persistReading(usinaId, todayKwh, result.status).catch(() => {})
       return NextResponse.json({ ok: true, data: result })
     }
 
+    // ── Curva diária (via API autenticada) ────────────────────────────────
     if (action === 'daily') {
-      // SolarZ não fornece curva diária na API pública — retorna estimativa
-      const gen = await fetchSolarZ('/generations/usina', uuid)
+      const plant  = await publicGet('/usina', { uuid })
+      const plantId = plant.id as number | null
+
+      if (plantId && process.env.SOLARZ_USERNAME) {
+        try {
+          const dayData = await authGet(`/api-sz/generation/day?usinaId=${plantId}&day=${date}&unitePortals=true`)
+          const points: any[] = Array.isArray(dayData)
+            ? dayData
+            : (dayData?.data || dayData?.points || dayData?.readings || [])
+
+          if (points.length > 0) {
+            const hours = points.map((p: any) => ({
+              hour:  p.time || p.hora || p.timestamp || '',
+              power: parseFloat((p.power ?? p.potencia ?? p.value ?? 0).toFixed(2)),
+            }))
+            const totalKwh = parseFloat((hours.reduce((s, h) => s + h.power, 0) / 1000).toFixed(1))
+            return NextResponse.json({ ok: true, data: { date, hours, totalKwh } })
+          }
+        } catch (e) {
+          console.error('[solarz daily auth]', e)
+        }
+      }
+
+      // Fallback mock baseado na geração de ontem
+      const gen      = await publicGet('/generations/usina', { uuid })
       const todayKwh = gen.ontem || 0
       const rawHours = Array.from({ length: 24 }, (_, h) => ({
-        hour: `${String(h).padStart(2, '0')}:00`,
+        hour:  `${String(h).padStart(2, '0')}:00`,
         power: (h >= 6 && h <= 18) ? Math.max(0, Math.sin(Math.PI * (h - 5) / 13)) * (0.85 + Math.random() * 0.3) : 0,
       }))
       const rawTotal = rawHours.reduce((s, h) => s + h.power, 0)
-      const scale = rawTotal > 0 ? todayKwh / rawTotal : 1
+      const scale    = rawTotal > 0 ? todayKwh / rawTotal : 1
       return NextResponse.json({
         mock: true,
         data: {
-          date: new Date().toISOString().slice(0, 10),
-          hours: rawHours.map(h => ({ ...h, power: parseFloat((h.power * scale).toFixed(2)) })),
+          date,
+          hours:    rawHours.map(h => ({ ...h, power: parseFloat((h.power * scale).toFixed(2)) })),
           totalKwh: todayKwh,
         },
       })
