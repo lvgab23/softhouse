@@ -20,8 +20,6 @@ const navItems = [
     label: 'Cadastros',
     icon: Building2,
     children: [
-      { href: '/cadastros/imoveis', label: 'Imóveis' },
-      { href: '/cadastros/bens-moveis', label: 'Bens Móveis' },
       { href: '/cadastros/categorias', label: 'Categorias' },
       { href: '/cadastros/fornecedores', label: 'Fornecedores' },
     ],
