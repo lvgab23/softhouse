@@ -53,7 +53,7 @@ export default function InvestimentosPage() {
   const [editing, setEditing] = useState<any | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { tipo: 'renda_fixa', valor_investido: 0, valor_atual: 0 },
   })

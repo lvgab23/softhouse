@@ -76,7 +76,7 @@ export default function BensDespesasPage() {
   const [periodoFilter, setPeriodo] = useState('todos')
   const [deleting, setDeleting]     = useState<string | null>(null)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { data: new Date().toISOString().split('T')[0], categoria: 'outros' },
   })
