@@ -503,8 +503,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
           boardType={boardType}
           onClose={() => setSelected(null)}
           onSaved={(updated) => {
-            setCards(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
-            setSelected(null)
+            setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, ...updated } : c))
           }}
           onDeleted={() => {
             setCards(prev => prev.filter(c => c.id !== selectedCard.id))
