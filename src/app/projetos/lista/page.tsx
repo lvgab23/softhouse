@@ -39,9 +39,19 @@ export default function ProjetosListaPage() {
     defaultValues: { status: 'ativo' },
   })
 
+  const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
+
   const fetchData = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('projetos').select('*').order('created_at', { ascending: false })
+    const [{ data }, { data: ap }] = await Promise.all([
+      supabase.from('projetos').select('*').order('created_at', { ascending: false }),
+      (supabase as any).from('aportes').select('projeto_id, valor').not('projeto_id', 'is', null),
+    ])
+    const sums: Record<string, number> = {}
+    for (const a of ap || []) {
+      if (a.projeto_id) sums[a.projeto_id] = (sums[a.projeto_id] || 0) + (a.valor || 0)
+    }
+    setTotalAportado(sums)
     setProjetos(data || [])
     setLoading(false)
   }, [])
@@ -109,14 +119,19 @@ export default function ProjetosListaPage() {
                   <p className="font-semibold text-gray-900">{p.nome}</p>
                   {p.descricao && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.descricao}</p>}
                 </div>
-                <div className="flex items-center justify-between border-t border-gray-50 pt-3">
-                  <div>
-                    <p className="text-xs text-gray-400">Valor Total</p>
-                    <p className="text-sm font-bold text-gray-900">{p.valor_total ? formatBRL(p.valor_total) : '—'}</p>
+                <div className="border-t border-gray-50 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400">Valor Previsto</p>
+                      <p className="text-sm font-bold text-gray-900">{p.valor_total ? formatBRL(p.valor_total) : '—'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-purple-400">Total Aportado</p>
+                      <p className="text-sm font-bold text-purple-600">{formatBRL(totalAportado[p.id] || 0)}</p>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">Início</p>
-                    <p className="text-sm text-gray-600">{formatDate(p.data_inicio)}</p>
+                    <p className="text-xs text-gray-400">Início: {formatDate(p.data_inicio)}</p>
                   </div>
                 </div>
               </div>

@@ -93,19 +93,25 @@ export default function ImoveisPage() {
   const tipoAquisicao = watch('tipo_aquisicao')
   const socioAquisicao = watch('socio_aquisicao')
 
+  const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
+
   const fetchData = useCallback(async () => {
-    // Run migration silently so columns always exist
     await fetch('/api/admin/migrate-patrimonio', { method: 'POST' }).catch(() => {})
 
     const supabase = createClient()
-    const [p, c] = await Promise.all([
+    const [p, c, ap] = await Promise.all([
       supabase.from('patrimonios').select('*, categorias(nome)').order('created_at', { ascending: false }),
       supabase.from('categorias').select('*').order('nome'),
+      (supabase as any).from('aportes').select('patrimonio_id, valor').not('patrimonio_id', 'is', null),
     ])
     const items = p.data || []
-    // After migration, columns should exist — only fall back if still missing
     if (items.length > 0 && !('tipo_aquisicao' in items[0])) setNeedsAquisicaoMigration(true)
     else setNeedsAquisicaoMigration(false)
+    const sums: Record<string, number> = {}
+    for (const a of ap.data || []) {
+      if (a.patrimonio_id) sums[a.patrimonio_id] = (sums[a.patrimonio_id] || 0) + (a.valor || 0)
+    }
+    setTotalAportado(sums)
     setPatrimonios(items)
     setCategorias(c.data || [])
     setLoading(false)
@@ -311,8 +317,11 @@ export default function ImoveisPage() {
                         <td className="px-4 py-3 text-gray-500">
                           {[p.cidade, p.estado].filter(Boolean).join(', ') || '—'}
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">
-                          {p.valor_atual ? formatBRL(p.valor_atual) : p.valor_aquisicao ? formatBRL(p.valor_aquisicao) : '—'}
+                        <td className="px-4 py-3 text-right text-xs">
+                          <p className="font-medium text-gray-900">{p.valor_atual ? formatBRL(p.valor_atual) : p.valor_aquisicao ? formatBRL(p.valor_aquisicao) : '—'}</p>
+                          {totalAportado[p.id] > 0 && (
+                            <p className="text-purple-600 font-medium">+{formatBRL(totalAportado[p.id])} aport.</p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <Badge variant={sc.variant}>{sc.label}</Badge>

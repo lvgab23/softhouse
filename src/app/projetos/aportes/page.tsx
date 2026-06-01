@@ -41,8 +41,17 @@ const PERIODS = [
   { value: 'ano', label: 'Este ano' },
 ]
 
+const VINCULO_TIPOS = [
+  { value: 'projeto',   label: 'Projeto' },
+  { value: 'imovel',    label: 'Imóvel' },
+  { value: 'bem_movel', label: 'Bem Móvel' },
+]
+
 const schema = z.object({
-  projeto_id: z.string().min(1, 'Projeto obrigatório'),
+  vinculo_tipo: z.enum(['projeto', 'imovel', 'bem_movel']).default('projeto'),
+  projeto_id: z.string().optional(),
+  patrimonio_id: z.string().optional(),
+  bem_movel_id: z.string().optional(),
   valor: z.number().positive('Valor deve ser positivo'),
   data: z.string().min(1, 'Data obrigatória'),
   tipo: z.string().default('capital_proprio'),
@@ -63,6 +72,8 @@ const TIPO_CONFIG: Record<string, { label: string; variant: any; isSocio?: boole
 export default function AportesPage() {
   const [aportes, setAportes] = useState<any[]>([])
   const [projetos, setProjetos] = useState<any[]>([])
+  const [patrimonios, setPatrimonios] = useState<any[]>([])
+  const [bensMoveis, setBensMoveis] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -72,25 +83,30 @@ export default function AportesPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [needsSocioMigration, setNeedsSocioMigration] = useState(false)
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio' },
+    defaultValues: { data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio', vinculo_tipo: 'projeto' },
   })
 
   const tipoAtual = watch('tipo')
+  const vinculoTipo = watch('vinculo_tipo')
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
-    const [a, p] = await Promise.all([
-      supabase.from('aportes').select('*, projetos(nome)').order('data', { ascending: false }),
+    const [a, p, pat, bm] = await Promise.all([
+      supabase.from('aportes')
+        .select('*, projetos(nome), patrimonios(nome), bens_moveis(nome)')
+        .order('data', { ascending: false }),
       supabase.from('projetos').select('id, nome').order('nome'),
+      (supabase as any).from('patrimonios').select('id, nome').order('nome'),
+      (supabase as any).from('bens_moveis').select('id, nome').order('nome'),
     ])
     const items = a.data || []
-    if (items.length > 0 && !('socio_nome' in items[0])) {
-      setNeedsSocioMigration(true)
-    }
+    if (items.length > 0 && !('socio_nome' in items[0])) setNeedsSocioMigration(true)
     setAportes(items)
     setProjetos(p.data || [])
+    setPatrimonios(pat.data || [])
+    setBensMoveis(bm.data || [])
     setLoading(false)
   }, [])
 
@@ -125,8 +141,14 @@ export default function AportesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    if (data.vinculo_tipo === 'projeto' && !data.projeto_id) { toast.error('Selecione um projeto'); return }
+    if (data.vinculo_tipo === 'imovel' && !data.patrimonio_id) { toast.error('Selecione um imóvel'); return }
+    if (data.vinculo_tipo === 'bem_movel' && !data.bem_movel_id) { toast.error('Selecione um bem móvel'); return }
+
     const basePayload: any = {
-      projeto_id: data.projeto_id,
+      projeto_id:    data.vinculo_tipo === 'projeto'   ? data.projeto_id   : null,
+      patrimonio_id: data.vinculo_tipo === 'imovel'    ? data.patrimonio_id : null,
+      bem_movel_id:  data.vinculo_tipo === 'bem_movel' ? data.bem_movel_id  : null,
       valor: data.valor,
       data: data.data,
       tipo: data.tipo,
@@ -135,17 +157,13 @@ export default function AportesPage() {
       user_id: user.id,
     }
 
-    // Try with socio_nome when applicable
     const wantSocioNome = data.tipo === 'aporte_socio' && !needsSocioMigration
-    const payload = wantSocioNome
-      ? { ...basePayload, socio_nome: data.socio_nome || null }
-      : basePayload
+    const payload = wantSocioNome ? { ...basePayload, socio_nome: data.socio_nome || null } : basePayload
 
     const { error } = await (supabase as any).from('aportes').insert(payload)
 
     if (error) {
-      // Column doesn't exist yet — retry without it and show migration warning
-      if (wantSocioNome && (error.code === '42703' || error.message?.includes('socio_nome') || error.message?.includes('column'))) {
+      if (wantSocioNome && (error.code === '42703' || error.message?.includes('socio_nome'))) {
         setNeedsSocioMigration(true)
         const { error: e2 } = await (supabase as any).from('aportes').insert(basePayload)
         if (e2) { toast.error('Erro ao criar aporte'); return }
@@ -157,7 +175,7 @@ export default function AportesPage() {
 
     toast.success('Aporte registrado!')
     setModalOpen(false)
-    reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio' })
+    reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio', vinculo_tipo: 'projeto' })
     fetchData()
   }
 
@@ -266,7 +284,7 @@ export default function AportesPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Data</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Projeto</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Vínculo</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Tipo / Aportador</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Banco</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Descrição</th>
@@ -280,7 +298,18 @@ export default function AportesPage() {
                     return (
                       <tr key={a.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${i === filtered.length - 1 ? 'border-b-0' : ''}`}>
                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{a.data ? formatDate(a.data) : '—'}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{a.projetos?.nome || '—'}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {a.projetos?.nome
+                            ? <span className="text-purple-700">{a.projetos.nome}</span>
+                            : a.patrimonios?.nome
+                            ? <span className="text-blue-700">{a.patrimonios.nome}</span>
+                            : a.bens_moveis?.nome
+                            ? <span className="text-amber-700">{a.bens_moveis.nome}</span>
+                            : '—'}
+                          <span className="block text-[10px] text-gray-400">
+                            {a.projeto_id ? 'Projeto' : a.patrimonio_id ? 'Imóvel' : a.bem_movel_id ? 'Bem Móvel' : ''}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           {isSocio ? (
                             <div className="flex flex-col gap-0.5">
@@ -340,10 +369,47 @@ export default function AportesPage() {
         }
       >
         <form className="space-y-4">
-          <Select label="Projeto *" error={errors.projeto_id?.message} {...register('projeto_id')}>
-            <option value="">Selecione o projeto...</option>
-            {projetos.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-          </Select>
+          {/* Seletor de vínculo */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Vincular a *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {VINCULO_TIPOS.map(v => (
+                <button
+                  key={v.value}
+                  type="button"
+                  onClick={() => setValue('vinculo_tipo', v.value as any)}
+                  className={`h-9 rounded-lg border text-sm font-medium transition-all ${
+                    vinculoTipo === v.value
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Select dinâmico por tipo */}
+          {vinculoTipo === 'projeto' && (
+            <Select label="Projeto *" error={errors.projeto_id?.message} {...register('projeto_id')}>
+              <option value="">Selecione o projeto...</option>
+              {projetos.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </Select>
+          )}
+          {vinculoTipo === 'imovel' && (
+            <Select label="Imóvel *" error={errors.patrimonio_id?.message} {...register('patrimonio_id')}>
+              <option value="">Selecione o imóvel...</option>
+              {patrimonios.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </Select>
+          )}
+          {vinculoTipo === 'bem_movel' && (
+            <Select label="Bem Móvel *" error={errors.bem_movel_id?.message} {...register('bem_movel_id')}>
+              <option value="">Selecione o bem móvel...</option>
+              {bensMoveis.map((b: any) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+            </Select>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <CurrencyInput label="Valor (R$) *" value={watch("valor")} onChange={v => setValue("valor", v as any)} />
             <Input label="Data *" type="date" error={errors.data?.message} {...register('data')} />

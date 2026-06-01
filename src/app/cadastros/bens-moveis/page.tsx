@@ -92,10 +92,20 @@ export default function BensMoveiPage() {
     defaultValues: { tipo: 'automovel', status: 'ativo' },
   })
 
+  const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
+
   const fetchData = useCallback(async () => {
     const supabase = createClient()
-    const { data, error } = await (supabase as any).from('bens_moveis').select('*').order('created_at', { ascending: false })
+    const [{ data, error }, { data: ap }] = await Promise.all([
+      (supabase as any).from('bens_moveis').select('*').order('created_at', { ascending: false }),
+      (supabase as any).from('aportes').select('bem_movel_id, valor').not('bem_movel_id', 'is', null),
+    ])
     if (error?.code === '42P01') { setTableError(true); setLoading(false); return }
+    const sums: Record<string, number> = {}
+    for (const a of ap || []) {
+      if (a.bem_movel_id) sums[a.bem_movel_id] = (sums[a.bem_movel_id] || 0) + (a.valor || 0)
+    }
+    setTotalAportado(sums)
     setItems(data || [])
     setLoading(false)
   }, [])
@@ -264,8 +274,11 @@ CREATE POLICY "Users manage own bens_moveis"
                         <td className="px-4 py-3 text-right text-xs text-gray-600">
                           {item.km_atual != null ? `${Number(item.km_atual).toLocaleString('pt-BR')} km` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-900 text-xs">
-                          {formatBRL(item.valor_atual || item.valor_aquisicao || 0)}
+                        <td className="px-4 py-3 text-right text-xs">
+                          <p className="font-semibold text-gray-900">{formatBRL(item.valor_atual || item.valor_aquisicao || 0)}</p>
+                          {totalAportado[item.id] > 0 && (
+                            <p className="text-purple-600 font-medium">+{formatBRL(totalAportado[item.id])} aport.</p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs">
                           {item.ipva_vencimento
