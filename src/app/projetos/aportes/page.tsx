@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Search, ChevronDown, Trash2, User, Users } from 'lucide-react'
+import { Plus, Search, ChevronDown, Trash2, User, Users, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
@@ -81,6 +81,7 @@ export default function AportesPage() {
   const [projetoFilter, setProjetoFilter] = useState('todos')
   const [periodoFilter, setPeriodoFilter] = useState('todos')
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [editing, setEditing] = useState<any | null>(null)
   const [needsSocioMigration, setNeedsSocioMigration] = useState(false)
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -160,21 +161,27 @@ export default function AportesPage() {
     const wantSocioNome = data.tipo === 'aporte_socio' && !needsSocioMigration
     const payload = wantSocioNome ? { ...basePayload, socio_nome: data.socio_nome || null } : basePayload
 
-    const { error } = await (supabase as any).from('aportes').insert(payload)
-
-    if (error) {
-      if (wantSocioNome && (error.code === '42703' || error.message?.includes('socio_nome'))) {
-        setNeedsSocioMigration(true)
-        const { error: e2 } = await (supabase as any).from('aportes').insert(basePayload)
-        if (e2) { toast.error('Erro ao criar aporte'); return }
-      } else {
-        toast.error(`Erro ao criar aporte: ${error.message}`)
-        return
+    if (editing) {
+      const { error } = await (supabase as any).from('aportes').update(payload).eq('id', editing.id)
+      if (error) { toast.error(`Erro ao atualizar: ${error.message}`); return }
+      toast.success('Aporte atualizado!')
+    } else {
+      const { error } = await (supabase as any).from('aportes').insert(payload)
+      if (error) {
+        if (wantSocioNome && (error.code === '42703' || error.message?.includes('socio_nome'))) {
+          setNeedsSocioMigration(true)
+          const { error: e2 } = await (supabase as any).from('aportes').insert(basePayload)
+          if (e2) { toast.error('Erro ao criar aporte'); return }
+        } else {
+          toast.error(`Erro ao criar aporte: ${error.message}`)
+          return
+        }
       }
+      toast.success('Aporte registrado!')
     }
 
-    toast.success('Aporte registrado!')
     setModalOpen(false)
+    setEditing(null)
     reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio', vinculo_tipo: 'projeto' })
     fetchData()
   }
@@ -196,7 +203,8 @@ export default function AportesPage() {
     <AppLayout>
       <Topbar title="Aportes" subtitle="Controle de aportes em projetos">
         <Button size="sm" onClick={() => {
-          reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio' })
+          setEditing(null)
+          reset({ data: new Date().toISOString().split('T')[0], tipo: 'capital_proprio', vinculo_tipo: 'projeto' })
           setModalOpen(true)
         }}>
           <Plus className="h-4 w-4" /> Novo Aporte
@@ -333,9 +341,34 @@ export default function AportesPage() {
                         <td className="px-4 py-3 text-gray-500 text-xs truncate max-w-[180px]">{a.descricao || '—'}</td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatBRL(a.valor)}</td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setDeleting(a.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => {
+                                setEditing(a)
+                                const vt = a.projeto_id ? 'projeto' : a.patrimonio_id ? 'imovel' : 'bem_movel'
+                                reset({
+                                  vinculo_tipo: vt,
+                                  projeto_id: a.projeto_id || '',
+                                  patrimonio_id: a.patrimonio_id || '',
+                                  bem_movel_id: a.bem_movel_id || '',
+                                  valor: a.valor,
+                                  data: a.data,
+                                  tipo: a.tipo,
+                                  socio_nome: a.socio_nome || '',
+                                  banco: a.banco || '',
+                                  descricao: a.descricao || '',
+                                })
+                                setModalOpen(true)
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-500"
+                              title="Editar aporte"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => setDeleting(a.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Excluir aporte">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -359,12 +392,12 @@ export default function AportesPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Novo Aporte"
+        onClose={() => { setModalOpen(false); setEditing(null) }}
+        title={editing ? 'Editar Aporte' : 'Novo Aporte'}
         footer={
           <>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>Registrar</Button>
+            <Button variant="outline" onClick={() => { setModalOpen(false); setEditing(null) }}>Cancelar</Button>
+            <Button onClick={handleSubmit(onSubmit)} loading={isSubmitting}>{editing ? 'Salvar' : 'Registrar'}</Button>
           </>
         }
       >
