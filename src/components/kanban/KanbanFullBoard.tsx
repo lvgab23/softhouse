@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { Plus, Search, X, CheckSquare, Clock } from 'lucide-react'
+import { Plus, Search, X, CheckSquare, Clock, Pencil, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { KanbanCardDetail } from './KanbanCardDetail'
@@ -141,15 +141,30 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
   const [newColColorIdx, setNewColColorIdx] = useState(0)
   const [creating, setCreating]       = useState(false)
   const [syncing, setSyncing]         = useState(false)
+  const [editingColId, setEditingColId]     = useState<string | null>(null)
+  const [editingColLabel, setEditingColLabel] = useState('')
+  const labelsKey = `kanban_col_labels_${boardType}`
 
   const loadColumns = useCallback(() => {
     const defaults = BOARD_COLS[boardType]
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || '[]') as FullKanbanColumn[]
+      const saved    = JSON.parse(localStorage.getItem(storageKey) || '[]') as FullKanbanColumn[]
+      const labels   = JSON.parse(localStorage.getItem(`kanban_col_labels_${boardType}`) || '{}') as Record<string, string>
       const customIds = new Set(saved.map(c => c.id))
-      setColumns([...defaults.filter(d => !customIds.has(d.id)), ...saved])
-    } catch { setColumns(defaults) }
+      const cols = [...defaults.filter(d => !customIds.has(d.id)), ...saved]
+      // Apply saved label overrides
+      setColumns(cols.map(c => labels[c.id] ? { ...c, label: labels[c.id] } : c))
+    } catch { setColumns(BOARD_COLS[boardType]) }
   }, [boardType, storageKey])
+
+  function saveColLabel(colId: string, newLabel: string) {
+    if (!newLabel.trim()) return
+    const labels = JSON.parse(localStorage.getItem(labelsKey) || '{}') as Record<string, string>
+    labels[colId] = newLabel.trim()
+    localStorage.setItem(labelsKey, JSON.stringify(labels))
+    setColumns(prev => prev.map(c => c.id === colId ? { ...c, label: newLabel.trim() } : c))
+    setEditingColId(null)
+  }
 
   // ── Auto-sync original records into kanban_cards ─────────────────────────────
   const syncFromOriginalTable = useCallback(async (sb: any, userId: string, existingCards: FullKanbanCard[]) => {
@@ -332,15 +347,45 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
                     {/* Column header */}
                     <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border group"
                       style={{ background: col.light, borderColor: col.border }}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.color }} />
-                        <span className="text-xs font-semibold truncate" style={{ color: col.text }}>{col.label}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
+                      {editingColId === col.id ? (
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <input
+                            autoFocus
+                            value={editingColLabel}
+                            onChange={e => setEditingColLabel(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') saveColLabel(col.id, editingColLabel)
+                              if (e.key === 'Escape') setEditingColId(null)
+                            }}
+                            className="flex-1 min-w-0 text-xs font-semibold bg-white/80 border border-white rounded px-1.5 py-0.5 focus:outline-none"
+                            style={{ color: col.text }}
+                          />
+                          <button onClick={() => saveColLabel(col.id, editingColLabel)}
+                            className="p-0.5 rounded hover:bg-white/50 flex-shrink-0" style={{ color: col.text }}>
+                            <Check className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.color }} />
+                          <span className="text-xs font-semibold truncate" style={{ color: col.text }}>{col.label}</span>
+                          {boardType === 'pipeline' && (
+                            <button
+                              onClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/50 flex-shrink-0 transition-opacity"
+                              style={{ color: col.text }}
+                              title="Renomear coluna"
+                            >
+                              <Pencil className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className="text-xs font-bold bg-white/70 rounded-full w-5 h-5 flex items-center justify-center" style={{ color: col.text }}>
                           {colCards.length}
                         </span>
-                        {col.isCustom && (
+                        {col.isCustom && editingColId !== col.id && (
                           <button onClick={() => deleteColumn(col)}
                             className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-400 transition-opacity">
                             <X className="h-3 w-3" />
