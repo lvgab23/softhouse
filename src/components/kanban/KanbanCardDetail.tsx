@@ -55,6 +55,7 @@ const BOARD_CATEGORIES: Record<BoardType, string[]> = {
   bens:     ['Imóvel', 'Veículo', 'Usina', 'Equipamento', 'Terreno', 'Participação', 'Outro'],
   negocios: ['Empresa', 'Franquia', 'Compra de Participação', 'Investimento', 'Parceria', 'Operação', 'Renda Passiva'],
   projetos: ['Projeto', 'Tarefa', 'Iniciativa', 'Outro'],
+  adm:      ['Administrativo', 'Financeiro', 'Jurídico', 'RH', 'TI', 'Operacional', 'Outro'],
 }
 
 const ACTION_LABELS: Record<string, string> = {
