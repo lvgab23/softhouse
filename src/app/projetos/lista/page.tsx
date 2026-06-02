@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, FolderOpen, Pencil, DollarSign, Users, User, X } from 'lucide-react'
+import { Plus, FolderOpen, Pencil, Trash2, DollarSign, Users, User, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Topbar } from '@/components/layout/topbar'
@@ -40,6 +40,8 @@ export default function ProjetosListaPage() {
   const [loading, setLoading]         = useState(true)
   const [modalOpen, setModalOpen]     = useState(false)
   const [editing, setEditing]         = useState<any | null>(null)
+  const [deletingId, setDeletingId]   = useState<string | null>(null)
+  const [deleting, setDeleting]       = useState(false)
   const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
 
   // Detail modal
@@ -103,6 +105,18 @@ export default function ProjetosListaPage() {
     setModalOpen(true)
   }
 
+  const handleDelete = async () => {
+    if (!deletingId) return
+    setDeleting(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('projetos').delete().eq('id', deletingId)
+    if (error) { toast.error('Erro ao excluir projeto'); setDeleting(false); return }
+    toast.success('Projeto excluído!')
+    setDeletingId(null)
+    setDeleting(false)
+    fetchData()
+  }
+
   const onSubmit = async (data: FormData) => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -154,7 +168,7 @@ export default function ProjetosListaPage() {
                   <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
                     <FolderOpen className="h-5 w-5 text-purple-500" />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Badge variant={p.status === 'ativo' ? 'success' : p.status === 'encerrado' ? 'gray' : 'warning'}>
                       {p.status}
                     </Badge>
@@ -164,6 +178,13 @@ export default function ProjetosListaPage() {
                       title="Editar projeto"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setDeletingId(p.id) }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Excluir projeto"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -304,6 +325,24 @@ export default function ProjetosListaPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal Confirmar Exclusão ── */}
+      <Modal
+        open={!!deletingId}
+        onClose={() => setDeletingId(null)}
+        title="Excluir Projeto"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeletingId(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleting}>Excluir</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          Tem certeza que deseja excluir este projeto? Os aportes vinculados <strong>não serão excluídos</strong>, apenas o projeto.
+        </p>
+      </Modal>
 
       {/* ── Modal Editar/Criar Projeto ── */}
       <Modal
