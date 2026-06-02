@@ -47,12 +47,11 @@ export interface FullKanbanColumn {
 // ─── Columns per board ────────────────────────────────────────────────────────
 const BOARD_COLS: Record<BoardType, FullKanbanColumn[]> = {
   adm: [
-    { id: 'adm_col1', label: 'Primeira Reunião', color: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
-    { id: 'adm_col2', label: 'Em Análise',       color: '#3b82f6', light: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-    { id: 'adm_col3', label: 'Analisado',        color: '#f59e0b', light: '#fffbeb', text: '#b45309', border: '#fde68a' },
-    { id: 'adm_col4', label: 'Em Compliance',    color: '#f97316', light: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
-    { id: 'adm_col5', label: 'Em Fechamento',    color: '#8b5cf6', light: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
-    { id: 'adm_col6', label: 'Fechado',          color: '#22c55e', light: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+    { id: 'adm_col1', label: 'A Fazer',               color: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+    { id: 'adm_col2', label: 'Fazendo',               color: '#3b82f6', light: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    { id: 'adm_col3', label: 'Aguardando Terceiros',  color: '#f59e0b', light: '#fffbeb', text: '#b45309', border: '#fde68a' },
+    { id: 'adm_col4', label: 'Pausado',               color: '#94a3b8', light: '#f8fafc', text: '#475569', border: '#e2e8f0' },
+    { id: 'adm_col5', label: 'Finalizado',            color: '#22c55e', light: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
   ],
   pipeline: [
     { id: 'primeira_reuniao', label: 'Primeira Reunião', color: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
@@ -377,7 +376,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.color }} />
                           <span className="text-xs font-semibold truncate" style={{ color: col.text }}>{col.label}</span>
-                          {boardType === 'pipeline' && (
+                          {(boardType === 'pipeline' || boardType === 'adm') && (
                             <button
                               onClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
                               className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/50 flex-shrink-0 transition-opacity"
