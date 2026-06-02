@@ -16,7 +16,6 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/evolucao', icon: TrendingUp, label: 'Evolução' },
   { href: '/kanban', icon: Columns, label: 'Kanban' },
-  { href: '/kanban-adm', icon: Columns, label: 'Gestão ADM' },
   {
     label: 'Cadastros',
     icon: Building2,
