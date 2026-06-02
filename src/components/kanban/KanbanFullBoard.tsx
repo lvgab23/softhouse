@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { KanbanCardDetail } from './KanbanCardDetail'
 
-export type BoardType = 'bens' | 'negocios' | 'projetos' | 'pipeline'
+export type BoardType = 'bens' | 'negocios' | 'projetos' | 'pipeline' | 'adm'
 
 export interface FullKanbanCard {
   id: string
@@ -46,6 +46,14 @@ export interface FullKanbanColumn {
 
 // ─── Columns per board ────────────────────────────────────────────────────────
 const BOARD_COLS: Record<BoardType, FullKanbanColumn[]> = {
+  adm: [
+    { id: 'adm_col1', label: 'Primeira Reunião', color: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+    { id: 'adm_col2', label: 'Em Análise',       color: '#3b82f6', light: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    { id: 'adm_col3', label: 'Analisado',        color: '#f59e0b', light: '#fffbeb', text: '#b45309', border: '#fde68a' },
+    { id: 'adm_col4', label: 'Em Compliance',    color: '#f97316', light: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+    { id: 'adm_col5', label: 'Em Fechamento',    color: '#8b5cf6', light: '#f5f3ff', text: '#6d28d9', border: '#ddd6fe' },
+    { id: 'adm_col6', label: 'Fechado',          color: '#22c55e', light: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+  ],
   pipeline: [
     { id: 'primeira_reuniao', label: 'Primeira Reunião', color: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
     { id: 'em_analise',       label: 'Em Análise',       color: '#3b82f6', light: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
