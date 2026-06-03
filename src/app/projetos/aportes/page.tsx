@@ -122,9 +122,9 @@ export default function AportesPage() {
       supabase.from('aportes')
         .select('*, projetos(nome), patrimonios(nome), bens_moveis(nome)')
         .order('data', { ascending: false }),
-      supabase.from('projetos').select('id, nome').order('nome'),
-      (supabase as any).from('patrimonios').select('id, nome').order('nome'),
-      (supabase as any).from('bens_moveis').select('id, nome').order('nome'),
+      supabase.from('projetos').select('id, nome').eq('user_id', activeOwnerId).order('nome'),
+      (supabase as any).from('patrimonios').select('id, nome').eq('user_id', activeOwnerId).order('nome'),
+      (supabase as any).from('bens_moveis').select('id, nome').eq('user_id', activeOwnerId).order('nome'),
     ])
     const items = a.data || []
     if (items.length > 0 && !('socio_nome' in items[0])) setNeedsSocioMigration(true)

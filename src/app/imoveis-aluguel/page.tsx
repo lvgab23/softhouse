@@ -56,8 +56,8 @@ export default function AlugueisPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [a, p] = await Promise.all([
-      supabase.from('alugueis').select('*, patrimonios(nome)').order('created_at', { ascending: false }),
-      supabase.from('patrimonios').select('id, nome').eq('status', 'ativo'),
+      supabase.from('alugueis').select('*, patrimonios(nome)').eq('user_id', activeOwnerId).order('created_at', { ascending: false }),
+      supabase.from('patrimonios').select('id, nome').eq('user_id', activeOwnerId).eq('status', 'ativo'),
     ])
     setAlugueis(a.data || [])
     setPatrimonios(p.data || [])

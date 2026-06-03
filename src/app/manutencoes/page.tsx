@@ -55,8 +55,8 @@ export default function ManutencoesPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [m, p, f] = await Promise.all([
-      supabase.from('manutencoes').select('*, patrimonios(nome), fornecedores(nome)').order('created_at', { ascending: false }),
-      supabase.from('patrimonios').select('id, nome').eq('status', 'ativo'),
+      supabase.from('manutencoes').select('*, patrimonios(nome), fornecedores(nome)').eq('user_id', activeOwnerId).order('created_at', { ascending: false }),
+      supabase.from('patrimonios').select('id, nome').eq('user_id', activeOwnerId).eq('status', 'ativo'),
       supabase.from('fornecedores').select('id, nome'),
     ])
     setManutencoes(m.data || [])

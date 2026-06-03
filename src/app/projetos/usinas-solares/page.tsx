@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL } from '@/lib/utils'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -55,6 +56,7 @@ const CACHOEIRA_SEED = {
 }
 
 export default function UsinasSolaresPage() {
+  const { activeOwnerId } = usePortfolio()
   const [usinas, setUsinas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -76,7 +78,7 @@ export default function UsinasSolaresPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const { data, error } = await supabase.from('usinas_solares').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('usinas_solares').select('*').eq('user_id', activeOwnerId).order('created_at', { ascending: false })
     if (error) { setLoading(false); return }
 
     const list = data || []
