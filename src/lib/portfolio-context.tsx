@@ -38,7 +38,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    // Portfólio próprio
+    // ── Portfólio próprio
     const ownPortfolio: Portfolio = {
       owner_id:    user.id,
       owner_name:  user.user_metadata?.nome || user.email?.split('@')[0] || 'Meu portfólio',
@@ -46,10 +46,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       is_own:      true,
     }
 
-    // Define o activeOwnerId imediatamente com o user.id para evitar queries com string vazia
+    // ── Define imediatamente o activeOwnerId com o user.id para não deixar vazio
+    // Só muda se havia uma seleção salva válida
     const saved = typeof window !== 'undefined' ? localStorage.getItem('active_portfolio') : null
 
-    // Busca colaborações ativas
+    // Começa com o próprio portfólio
+    setActiveId(saved && saved !== user.id ? saved : user.id)
+
+    // ── Busca colaborações ativas
     const { data: collabs } = await (supabase as any)
       .from('colaboradores')
       .select('owner_id, owner_user_id')
@@ -77,16 +81,26 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       }
 
       if (!collabPortfolios.find(p => p.owner_id === ownerId)) {
-        collabPortfolios.push({ owner_id: ownerId, owner_name: ownerName, owner_email: ownerEmail, is_own: false })
+        collabPortfolios.push({
+          owner_id:    ownerId,
+          owner_name:  ownerName,
+          owner_email: ownerEmail,
+          is_own:      false,
+        })
       }
     }
 
     const all = [ownPortfolio, ...collabPortfolios]
     setPortfolios(all)
 
-    // Valida e restaura seleção salva
-    const valid = all.find(p => p.owner_id === saved)
-    setActiveId(valid ? valid.owner_id : user.id)
+    // Valida seleção salva — se não for válida, volta para o próprio portfólio
+    if (saved) {
+      const valid = all.find(p => p.owner_id === saved)
+      setActiveId(valid ? valid.owner_id : user.id)
+    } else {
+      setActiveId(user.id)
+    }
+
     setLoading(false)
   }, [])
 
