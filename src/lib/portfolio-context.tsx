@@ -46,7 +46,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       is_own:      true,
     }
 
-    // Busca colaborações ativas (sem join — mais robusto)
+    // Define o activeOwnerId imediatamente com o user.id para evitar queries com string vazia
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('active_portfolio') : null
+
+    // Busca colaborações ativas
     const { data: collabs } = await (supabase as any)
       .from('colaboradores')
       .select('owner_id, owner_user_id')
@@ -59,7 +62,6 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       const ownerId = c.owner_id || c.owner_user_id
       if (!ownerId || ownerId === user.id) continue
 
-      // Tenta buscar o perfil do dono
       let ownerName  = 'Family Office'
       let ownerEmail = ''
 
@@ -74,7 +76,6 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         ownerEmail = profile.email || ''
       }
 
-      // Evita duplicatas
       if (!collabPortfolios.find(p => p.owner_id === ownerId)) {
         collabPortfolios.push({ owner_id: ownerId, owner_name: ownerName, owner_email: ownerEmail, is_own: false })
       }
@@ -83,8 +84,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     const all = [ownPortfolio, ...collabPortfolios]
     setPortfolios(all)
 
-    // Restaura seleção salva (ou usa o próprio)
-    const saved = localStorage.getItem('active_portfolio')
+    // Valida e restaura seleção salva
     const valid = all.find(p => p.owner_id === saved)
     setActiveId(valid ? valid.owner_id : user.id)
     setLoading(false)
@@ -94,9 +94,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   function switchPortfolio(ownerId: string) {
     setActiveId(ownerId)
-    localStorage.setItem('active_portfolio', ownerId)
-    // Recarrega para garantir dados frescos
-    window.location.reload()
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('active_portfolio', ownerId)
+      window.location.reload()
+    }
   }
 
   const activePortfolio = portfolios.find(p => p.owner_id === activeOwnerId) ?? null

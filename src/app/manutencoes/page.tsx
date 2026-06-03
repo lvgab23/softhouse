@@ -90,6 +90,7 @@ export default function ManutencoesPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
 
     const payload = { ...data, user_id: user.id, fornecedor_id: data.fornecedor_id || null }
 

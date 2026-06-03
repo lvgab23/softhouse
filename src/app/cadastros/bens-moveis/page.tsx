@@ -140,6 +140,7 @@ export default function BensMoveiPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
     const clean = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v === '' ? null : v]))
     const { error } = editing
       ? await (supabase as any).from('bens_moveis').update(clean).eq('id', editing.id)

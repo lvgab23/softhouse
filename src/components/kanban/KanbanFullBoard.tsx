@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { Plus, Search, X, CheckSquare, Clock, Pencil, Check } from 'lucide-react'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { KanbanCardDetail } from './KanbanCardDetail'
@@ -151,6 +152,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
   const [editingColId, setEditingColId]     = useState<string | null>(null)
   const [editingColLabel, setEditingColLabel] = useState('')
   const labelsKey = `kanban_col_labels_${boardType}`
+  const { activeOwnerId } = usePortfolio()
 
   const loadColumns = useCallback(() => {
     const defaults = BOARD_COLS[boardType]
@@ -211,19 +213,21 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
     const sb = createClient() as any
     const { data: { user } } = await sb.auth.getUser()
     if (!user) { setLoading(false); return }
+    if (!activeOwnerId) { setLoading(false); return }
 
     const { data, error } = await sb
       .from('kanban_cards')
       .select('*, checklist_items:kanban_checklist_items(id, is_completed)')
       .eq('board_type', boardType)
+      .eq('user_id', activeOwnerId)
       .order('position')
 
     if (error) { toast.error(error.message); setLoading(false); return }
 
-    const synced = await syncFromOriginalTable(sb, user.id, data || [])
+    const synced = await syncFromOriginalTable(sb, activeOwnerId, data || [])
     setCards(synced as FullKanbanCard[])
     setLoading(false)
-  }, [boardType, syncFromOriginalTable])
+  }, [boardType, syncFromOriginalTable, activeOwnerId])
 
   useEffect(() => { loadColumns(); fetchCards() }, [loadColumns, fetchCards])
 
@@ -254,7 +258,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
     if (!user) { toast.error('Não autenticado'); setCreating(false); return }
     const { data, error } = await sb.from('kanban_cards').insert({
       board_type: boardType, column_id: colId, title: quickTitle.trim(),
-      user_id: user.id, position: cards.filter(c => c.column_id === colId).length,
+      user_id: activeOwnerId || user.id, position: cards.filter(c => c.column_id === colId).length,
     }).select('*, checklist_items:kanban_checklist_items(id, is_completed)').single()
     if (error) { toast.error(error.message); setCreating(false); return }
     await sb.from('kanban_activity_logs').insert({ card_id: data.id, user_id: user.id, action_type: 'created', new_value: data.title })

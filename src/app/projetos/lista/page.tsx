@@ -123,6 +123,7 @@ export default function ProjetosListaPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
 
     if (editing) {
       const { error } = await supabase.from('projetos').update(data).eq('id', editing.id)

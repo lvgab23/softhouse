@@ -177,6 +177,7 @@ export default function ImoveisPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
 
     // Build payload explicitly — never send empty strings for nullable fields
     const basePayload: any = {

@@ -165,6 +165,7 @@ export default function AportesPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
 
     if (data.vinculo_tipo === 'projeto' && !data.projeto_id) { toast.error('Selecione um projeto'); return }
     if (data.vinculo_tipo === 'imovel' && !data.patrimonio_id) { toast.error('Selecione um imóvel'); return }

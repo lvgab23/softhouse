@@ -81,6 +81,7 @@ export default function AlugueisPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    if (!activeOwnerId) return
 
     const payload = { ...data, user_id: user.id, data_fim: data.data_fim || null }
 
