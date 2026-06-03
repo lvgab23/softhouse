@@ -17,6 +17,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const TIPOS = [
@@ -92,12 +93,13 @@ export default function BensMoveiPage() {
     defaultValues: { tipo: 'automovel', status: 'ativo' },
   })
 
+  const { activeOwnerId } = usePortfolio()
   const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [{ data, error }, { data: ap }] = await Promise.all([
-      (supabase as any).from('bens_moveis').select('*').order('created_at', { ascending: false }),
+      (supabase as any).from('bens_moveis').select('*').eq('user_id', activeOwnerId).order('created_at', { ascending: false }),
       (supabase as any).from('aportes').select('bem_movel_id, valor').not('bem_movel_id', 'is', null),
     ])
     if (error?.code === '42P01') { setTableError(true); setLoading(false); return }
@@ -110,7 +112,7 @@ export default function BensMoveiPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, activeOwnerId])
 
   const openCreate = () => {
     setEditing(null)

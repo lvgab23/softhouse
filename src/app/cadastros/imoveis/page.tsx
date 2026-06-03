@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate, buscaCEP } from '@/lib/utils'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 import type { Patrimonio, Categoria } from '@/types/database'
 
@@ -93,6 +94,7 @@ export default function ImoveisPage() {
   const tipoAquisicao = watch('tipo_aquisicao')
   const socioAquisicao = watch('socio_aquisicao')
 
+  const { activeOwnerId } = usePortfolio()
   const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
 
   const fetchData = useCallback(async () => {
@@ -100,7 +102,7 @@ export default function ImoveisPage() {
 
     const supabase = createClient()
     const [p, c, ap] = await Promise.all([
-      supabase.from('patrimonios').select('*, categorias(nome)').order('created_at', { ascending: false }),
+      supabase.from('patrimonios').select('*, categorias(nome)').eq('user_id', activeOwnerId).order('created_at', { ascending: false }),
       supabase.from('categorias').select('*').order('nome'),
       (supabase as any).from('aportes').select('patrimonio_id, valor').not('patrimonio_id', 'is', null),
     ])
@@ -117,7 +119,7 @@ export default function ImoveisPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, activeOwnerId])
 
   const handleCEP = async (cep: string) => {
     if (cep.replace(/\D/g, '').length !== 8) return

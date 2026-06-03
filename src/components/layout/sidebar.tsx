@@ -7,10 +7,11 @@ import {
   LayoutDashboard, TrendingUp, Columns, Building2,
   Wallet, Map, Archive, Users, History, FolderKanban,
   ChevronDown, ChevronRight, LogOut, Briefcase, PiggyBank,
-  Wrench, Shield, ShieldCheck,
+  Wrench, Shield, ShieldCheck, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { usePortfolio } from '@/lib/portfolio-context'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -117,6 +118,8 @@ export function Sidebar() {
   const router = useRouter()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [showPortfolioMenu, setShowPortfolioMenu] = useState(false)
+  const { portfolios, activePortfolio, switchPortfolio } = usePortfolio()
 
   // Auto-open only the section that contains the current page
   useEffect(() => {
@@ -145,20 +148,59 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-[210px] bg-[#0a0f1e] flex flex-col z-40 border-r border-white/[0.06]">
 
-      {/* Brand */}
+      {/* Brand + Portfolio Switcher */}
       <div className="flex-shrink-0 px-4 pt-5 pb-4">
-        <div className="flex items-center gap-3">
-          {/* Logo mark */}
+        <button
+          onClick={() => portfolios.length > 1 && setShowPortfolioMenu(v => !v)}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-xl transition-colors text-left',
+            portfolios.length > 1 ? 'hover:bg-white/[0.05] px-2 py-1.5 -mx-2' : ''
+          )}
+        >
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40 flex-shrink-0">
-            <span className="text-white font-black text-[13px] tracking-tight leading-none">H</span>
+            <span className="text-white font-black text-[13px] tracking-tight leading-none">
+              {activePortfolio?.owner_name?.charAt(0).toUpperCase() || 'H'}
+            </span>
           </div>
-          <div className="min-w-0">
-            <p className="text-white font-bold text-[13px] leading-tight tracking-tight">House Family</p>
-            <p className="text-blue-400/60 text-[10px] leading-tight tracking-widest uppercase mt-0.5">Family Office</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-bold text-[13px] leading-tight tracking-tight truncate">
+              {activePortfolio?.is_own ? 'House Family' : (activePortfolio?.owner_name || 'House Family')}
+            </p>
+            <p className="text-blue-400/60 text-[10px] leading-tight tracking-widest uppercase mt-0.5">
+              {activePortfolio?.is_own ? 'Meu portfólio' : 'Colaborador'}
+            </p>
           </div>
-        </div>
+          {portfolios.length > 1 && (
+            <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 flex-shrink-0 transition-transform', showPortfolioMenu && 'rotate-180')} />
+          )}
+        </button>
+
+        {/* Dropdown de portfólios */}
+        {showPortfolioMenu && portfolios.length > 1 && (
+          <div className="mt-2 bg-[#131929] border border-white/[0.08] rounded-xl overflow-hidden shadow-xl">
+            {portfolios.map(p => (
+              <button
+                key={p.owner_id}
+                onClick={() => { switchPortfolio(p.owner_id); setShowPortfolioMenu(false) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/[0.05] transition-colors text-left"
+              >
+                <div className="w-6 h-6 rounded-lg bg-blue-600/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-blue-300 font-bold text-[10px]">{p.owner_name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-[11px] font-medium truncate">{p.is_own ? 'Meu portfólio' : p.owner_name}</p>
+                  <p className="text-slate-500 text-[10px] truncate">{p.owner_email}</p>
+                </div>
+                {activePortfolio?.owner_id === p.owner_id && (
+                  <Check className="h-3 w-3 text-blue-400 flex-shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Divider */}
-        <div className="mt-4 h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent" />
+        <div className="mt-3 h-px bg-gradient-to-r from-white/10 via-white/5 to-transparent" />
       </div>
 
       {/* Nav */}

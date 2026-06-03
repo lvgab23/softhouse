@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -40,6 +41,7 @@ export default function ProjetosListaPage() {
   const [loading, setLoading]         = useState(true)
   const [modalOpen, setModalOpen]     = useState(false)
   const [editing, setEditing]         = useState<any | null>(null)
+  const { activeOwnerId } = usePortfolio()
   const [deletingId, setDeletingId]   = useState<string | null>(null)
   const [deleting, setDeleting]       = useState(false)
   const [totalAportado, setTotalAportado] = useState<Record<string, number>>({})
@@ -58,7 +60,7 @@ export default function ProjetosListaPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const [{ data }, { data: ap }] = await Promise.all([
-      supabase.from('projetos').select('*').order('created_at', { ascending: false }),
+      supabase.from('projetos').select('*').eq('user_id', activeOwnerId).order('created_at', { ascending: false }),
       (supabase as any).from('aportes').select('projeto_id, valor').not('projeto_id', 'is', null),
     ])
     const sums: Record<string, number> = {}
@@ -68,9 +70,9 @@ export default function ProjetosListaPage() {
     setTotalAportado(sums)
     setProjetos(data || [])
     setLoading(false)
-  }, [])
+  }, [activeOwnerId])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, activeOwnerId])
 
   const openDetail = async (p: any) => {
     setDetailProjeto(p)
