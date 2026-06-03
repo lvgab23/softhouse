@@ -29,7 +29,7 @@ const PortfolioContext = createContext<PortfolioContextType>({
 })
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
-  const [portfolios, setPortfolios]   = useState<Portfolio[]>([])
+  const [portfolios, setPortfolios]  = useState<Portfolio[]>([])
   const [activeOwnerId, setActiveId] = useState('')
   const [loading, setLoading]        = useState(true)
 
@@ -46,19 +46,39 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       is_own:      true,
     }
 
-    // Portfólios onde é colaborador ativo
+    // Busca colaborações ativas (sem join — mais robusto)
     const { data: collabs } = await (supabase as any)
       .from('colaboradores')
-      .select('owner_id, profiles:owner_id(nome, email)')
+      .select('owner_id, owner_user_id')
       .eq('user_id', user.id)
       .eq('status', 'ativo')
 
-    const collabPortfolios: Portfolio[] = (collabs || []).map((c: any) => ({
-      owner_id:    c.owner_id,
-      owner_name:  c.profiles?.nome || c.profiles?.email?.split('@')[0] || 'Family Office',
-      owner_email: c.profiles?.email || '',
-      is_own:      false,
-    }))
+    const collabPortfolios: Portfolio[] = []
+
+    for (const c of collabs || []) {
+      const ownerId = c.owner_id || c.owner_user_id
+      if (!ownerId || ownerId === user.id) continue
+
+      // Tenta buscar o perfil do dono
+      let ownerName  = 'Family Office'
+      let ownerEmail = ''
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('nome, email')
+        .eq('id', ownerId)
+        .maybeSingle()
+
+      if (profile) {
+        ownerName  = profile.nome || profile.email?.split('@')[0] || 'Family Office'
+        ownerEmail = profile.email || ''
+      }
+
+      // Evita duplicatas
+      if (!collabPortfolios.find(p => p.owner_id === ownerId)) {
+        collabPortfolios.push({ owner_id: ownerId, owner_name: ownerName, owner_email: ownerEmail, is_own: false })
+      }
+    }
 
     const all = [ownPortfolio, ...collabPortfolios]
     setPortfolios(all)
@@ -75,6 +95,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   function switchPortfolio(ownerId: string) {
     setActiveId(ownerId)
     localStorage.setItem('active_portfolio', ownerId)
+    // Recarrega para garantir dados frescos
+    window.location.reload()
   }
 
   const activePortfolio = portfolios.find(p => p.owner_id === activeOwnerId) ?? null
