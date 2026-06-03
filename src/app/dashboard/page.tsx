@@ -13,6 +13,7 @@ import {
 import { Topbar } from '@/components/layout/topbar'
 import { formatBRL, formatShort } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { usePortfolio } from '@/lib/portfolio-context'
 
 // ── Palettes / constants ────────────────────────────────────────────────────
 const C = {
@@ -150,22 +151,24 @@ export default function DashboardPage() {
     patrimonios: [], bensMoveis: [], movimentacoes: [], manutencoes: [],
     projetos: [], aportes: [], despesas: [], empresas: [], alugueis: [],
   })
+  const { activeOwnerId } = usePortfolio()
 
   useEffect(() => {
+    if (!activeOwnerId) return
     async function load() {
       const sb = createClient()
       const [patriRes, movRes, manRes, projRes, aportRes, alugRes] = await Promise.all([
-        sb.from('patrimonios').select('*, categorias(nome)'),
-        sb.from('movimentacoes').select('*').order('data', { ascending: false }),
-        sb.from('manutencoes').select('*, patrimonios(nome)').neq('status', 'concluida').order('created_at', { ascending: false }).limit(8),
-        sb.from('projetos').select('*').order('nome'),
-        sb.from('aportes').select('*, projetos(nome)').order('data', { ascending: false }),
-        sb.from('alugueis').select('*').eq('status', 'ativo'),
+        sb.from('patrimonios').select('*, categorias(nome)').eq('user_id', activeOwnerId),
+        sb.from('movimentacoes').select('*').eq('user_id', activeOwnerId).order('data', { ascending: false }),
+        sb.from('manutencoes').select('*, patrimonios(nome)').eq('user_id', activeOwnerId).neq('status', 'concluida').order('created_at', { ascending: false }).limit(8),
+        sb.from('projetos').select('*').eq('user_id', activeOwnerId).order('nome'),
+        sb.from('aportes').select('*, projetos(nome)').eq('user_id', activeOwnerId).order('data', { ascending: false }),
+        sb.from('alugueis').select('*').eq('user_id', activeOwnerId).eq('status', 'ativo'),
       ])
       const [despRes, bensRes, empRes] = await Promise.all([
-        (sb as any).from('despesas_operacionais').select('*, projetos(nome)').order('data', { ascending: false }),
-        (sb as any).from('bens_moveis').select('*').order('nome'),
-        (sb as any).from('empresas').select('*').order('nome'),
+        (sb as any).from('despesas_operacionais').select('*, projetos(nome)').eq('user_id', activeOwnerId).order('data', { ascending: false }),
+        (sb as any).from('bens_moveis').select('*').eq('user_id', activeOwnerId).order('nome'),
+        (sb as any).from('empresas').select('*').eq('user_id', activeOwnerId).order('nome'),
       ])
       setRaw({
         patrimonios: patriRes.data || [],
@@ -181,7 +184,7 @@ export default function DashboardPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [activeOwnerId])
 
   const dateFrom = useMemo(() => {
     if (period.days === 0) return '2000-01-01'
