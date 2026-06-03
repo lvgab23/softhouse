@@ -216,12 +216,12 @@ export default function ImoveisPage() {
       const { error } = await supabase.from('patrimonios').update(payload).eq('id', editing.id)
       if (error) { toast.error(`Erro ao atualizar: ${error.message}`); return }
       toast.success('Patrimônio atualizado!')
-      try { await supabase.from('historico').insert({ user_id: user.id, tabela: 'patrimonios', acao: 'alteracao', registro_id: editing.id, campos: JSON.stringify(data) }) } catch (_) {}
+      try { await supabase.from('historico').insert({ user_id: activeOwnerId, tabela: 'patrimonios', acao: 'alteracao', registro_id: editing.id, campos: JSON.stringify(data) }) } catch (_) {}
     } else {
       const { data: novo, error } = await supabase.from('patrimonios').insert(payload).select().single()
       if (error) { toast.error(`Erro ao criar: ${error.message}`); return }
       toast.success('Patrimônio criado!')
-      try { await supabase.from('historico').insert({ user_id: user.id, tabela: 'patrimonios', acao: 'criacao', registro_id: novo.id }) } catch (_) {}
+      try { await supabase.from('historico').insert({ user_id: activeOwnerId, tabela: 'patrimonios', acao: 'criacao', registro_id: novo.id }) } catch (_) {}
     }
 
     setModalOpen(false)
@@ -234,7 +234,7 @@ export default function ImoveisPage() {
     const { error } = await supabase.from('patrimonios').delete().eq('id', id)
     if (error) { toast.error('Erro ao excluir'); return }
     toast.success('Patrimônio excluído')
-    if (user) await supabase.from('historico').insert({ user_id: user.id, tabela: 'patrimonios', acao: 'exclusao', registro_id: id })
+    if (user) await supabase.from('historico').insert({ user_id: activeOwnerId, tabela: 'patrimonios', acao: 'exclusao', registro_id: id })
     setDeleting(null)
     fetchData()
   }

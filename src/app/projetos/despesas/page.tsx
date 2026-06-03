@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { MetricCard } from '@/components/ui/metric-card'
 import { formatBRL, formatDate, formatShort } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const CATEGORIAS = [
@@ -62,6 +63,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function DespesasPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [despesas, setDespesas] = useState<any[]>([])
   const [projetos, setProjetos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -133,7 +136,7 @@ export default function DespesasPage() {
       data: data.data,
       categoria: data.categoria,
       descricao: data.descricao || null,
-      user_id: user.id,
+      user_id: activeOwnerId,
     })
     if (error) { toast.error(`Erro: ${error.message}`); return }
     toast.success('Despesa registrada!')

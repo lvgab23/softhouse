@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -39,6 +40,8 @@ const TIPOS = [
 ]
 
 export default function SociosPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [socios, setSocios] = useState<any[]>([])
   const [empresas, setEmpresas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,7 +105,7 @@ export default function SociosPage() {
     }
     const { error } = editing
       ? await (supabase as any).from('socios').update(payload).eq('id', editing.id)
-      : await (supabase as any).from('socios').insert({ ...payload, user_id: user.id })
+      : await (supabase as any).from('socios').insert({ ...payload, user_id: activeOwnerId })
     if (error) { toast.error(`Erro: ${error.message}`); console.error(error); return }
     toast.success(editing ? 'Sócio atualizado!' : 'Sócio cadastrado!')
     setModalOpen(false)

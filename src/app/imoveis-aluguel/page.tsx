@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -39,6 +40,8 @@ const statusConf: Record<string, { label: string; variant: any }> = {
 }
 
 export default function AlugueisPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [alugueis, setAlugueis] = useState<any[]>([])
   const [patrimonios, setPatrimonios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

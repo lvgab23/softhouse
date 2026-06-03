@@ -17,6 +17,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort, formatDate } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -60,6 +61,8 @@ function getPeriodDates(periodo: string): { inicio: string; fim: string } {
 }
 
 export default function RecebimentosPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [items, setItems] = useState<any[]>([])
   const [contas, setContas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

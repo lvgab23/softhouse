@@ -143,7 +143,7 @@ export default function BensMoveiPage() {
     const clean = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v === '' ? null : v]))
     const { error } = editing
       ? await (supabase as any).from('bens_moveis').update(clean).eq('id', editing.id)
-      : await (supabase as any).from('bens_moveis').insert({ ...clean, user_id: user.id })
+      : await (supabase as any).from('bens_moveis').insert({ ...clean, user_id: activeOwnerId })
     if (error) { toast.error('Erro ao salvar. Verifique se a tabela foi criada.'); console.error(error); return }
     toast.success(editing ? 'Bem atualizado!' : 'Bem cadastrado!')
     setModalOpen(false)

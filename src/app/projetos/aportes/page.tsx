@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { MetricCard } from '@/components/ui/metric-card'
 import { formatBRL, formatDate, formatShort } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 import { DollarSign, FolderOpen } from 'lucide-react'
 
@@ -70,6 +71,8 @@ const TIPO_CONFIG: Record<string, { label: string; variant: any; isSocio?: boole
 }
 
 export default function AportesPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [aportes, setAportes] = useState<any[]>([])
   const [projetos, setProjetos] = useState<any[]>([])
   const [patrimonios, setPatrimonios] = useState<any[]>([])

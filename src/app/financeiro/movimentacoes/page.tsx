@@ -17,6 +17,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatDate, formatShort } from '@/lib/utils'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -31,6 +32,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function MovimentacoesPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [movs, setMovs] = useState<any[]>([])
   const [patrimonios, setPatrimonios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,7 +63,7 @@ export default function MovimentacoesPage() {
     if (!user) return
     const { error } = await supabase.from('movimentacoes').insert({
       ...data,
-      user_id: user.id,
+      user_id: activeOwnerId,
       patrimonio_id: data.patrimonio_id || null,
     })
     if (error) { toast.error('Erro ao criar movimentação'); return }

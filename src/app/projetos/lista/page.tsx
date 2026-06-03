@@ -129,7 +129,7 @@ export default function ProjetosListaPage() {
       if (error) { toast.error('Erro ao atualizar'); return }
       toast.success('Projeto atualizado!')
     } else {
-      const { error } = await supabase.from('projetos').insert({ ...data, user_id: user.id })
+      const { error } = await supabase.from('projetos').insert({ ...data, user_id: activeOwnerId })
       if (error) { toast.error('Erro ao criar'); return }
       toast.success('Projeto criado!')
     }

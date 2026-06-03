@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatBRL, formatShort } from '@/lib/utils'
+import { usePortfolio } from '@/lib/portfolio-context'
 import { createClient } from '@/lib/supabase/client'
 
 const FASES = [
@@ -71,6 +72,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function EmpresasPage() {
+  
+  const { activeOwnerId } = usePortfolio()
   const [empresas, setEmpresas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -144,7 +147,7 @@ export default function EmpresasPage() {
       if (error) { toast.error('Erro ao atualizar empresa'); return }
       toast.success('Empresa atualizada com sucesso!')
     } else {
-      const { error } = await (supabase as any).from('empresas').insert({ ...payload, user_id: user.id })
+      const { error } = await (supabase as any).from('empresas').insert({ ...payload, user_id: activeOwnerId })
       if (error) { toast.error('Erro ao criar empresa'); return }
       toast.success('Empresa criada com sucesso!')
     }
