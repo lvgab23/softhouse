@@ -193,7 +193,7 @@ export default function AportesPage() {
       }
       toast.success('Aporte atualizado!')
     } else {
-      const insertPayload = { ...baseFields, user_id: user.id }
+      const insertPayload = { ...baseFields, user_id: activeOwnerId }
       const { error } = await (supabase as any).from('aportes').insert(insertPayload)
       if (error) {
         if (error.code === '42703' || error.message?.includes('socio_nome')) {

@@ -92,7 +92,7 @@ export default function ManutencoesPage() {
     if (!user) return
     if (!activeOwnerId) return
 
-    const payload = { ...data, user_id: user.id, fornecedor_id: data.fornecedor_id || null }
+    const payload = { ...data, user_id: activeOwnerId, fornecedor_id: data.fornecedor_id || null }
 
     if (editing) {
       const { error } = await supabase.from('manutencoes').update(payload).eq('id', editing.id)

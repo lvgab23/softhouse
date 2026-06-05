@@ -175,7 +175,7 @@ export default function UsinasSolaresPage() {
       solarz_uuid: data.solarz_uuid || null,
       localizacao: data.localizacao || null,
       notas: data.notas || null,
-      user_id: user.id,
+      user_id: activeOwnerId,
       updated_at: new Date().toISOString(),
     }
     if (editing) {

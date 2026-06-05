@@ -82,7 +82,7 @@ export default function LancamentosPage() {
     const supabase = createClient()
     const { inicio, fim } = getPeriodDates(periodo)
     const [r, c] = await Promise.all([
-      (supabase as any).from('lancamentos').eq ? .from('lancamentos').select('*').gte('data', inicio).lte('data', fim).order('data', { ascending: false }),
+      (supabase as any).from('lancamentos').select('*').gte('data', inicio).lte('data', fim).order('data', { ascending: false }),
       (supabase as any).from('contas_bancarias').select('id, banco, conta').eq('ativo', true),
     ])
     setItems(r.data || [])
@@ -122,7 +122,7 @@ export default function LancamentosPage() {
       conta_id: data.conta_id || null,
       categoria: data.categoria || null,
       notas: data.notas || null,
-      user_id: user.id,
+      user_id: activeOwnerId,
     }
     const { error } = editItem
       ? await (supabase as any).from('lancamentos').update(payload).eq('id', editItem.id)

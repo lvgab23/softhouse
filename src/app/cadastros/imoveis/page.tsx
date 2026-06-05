@@ -197,7 +197,7 @@ export default function ImoveisPage() {
       latitude: data.latitude && !isNaN(data.latitude) ? data.latitude : null,
       longitude: data.longitude && !isNaN(data.longitude) ? data.longitude : null,
       notas: data.notas || null,
-      user_id: user.id,
+      user_id: activeOwnerId,
       updated_at: new Date().toISOString(),
     }
 

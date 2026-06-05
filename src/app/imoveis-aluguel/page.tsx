@@ -83,7 +83,7 @@ export default function AlugueisPage() {
     if (!user) return
     if (!activeOwnerId) return
 
-    const payload = { ...data, user_id: user.id, data_fim: data.data_fim || null }
+    const payload = { ...data, user_id: activeOwnerId, data_fim: data.data_fim || null }
 
     if (editing) {
       const { error } = await supabase.from('alugueis').update(payload).eq('id', editing.id)

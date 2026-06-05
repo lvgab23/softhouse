@@ -115,7 +115,7 @@ export default function RecebimentosPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const payload = { ...data, tipo: 'receita', conta_id: data.conta_id || null, categoria: data.categoria || null, user_id: user.id }
+    const payload = { ...data, tipo: 'receita', conta_id: data.conta_id || null, categoria: data.categoria || null, user_id: activeOwnerId }
     const { error } = editItem
       ? await (supabase as any).from('lancamentos').update(payload).eq('id', editItem.id)
       : await (supabase as any).from('lancamentos').insert(payload)

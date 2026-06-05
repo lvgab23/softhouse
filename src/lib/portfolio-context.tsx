@@ -46,12 +46,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       is_own:      true,
     }
 
-    // ── Define imediatamente o activeOwnerId com o user.id para não deixar vazio
-    // Só muda se havia uma seleção salva válida
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('active_portfolio') : null
-
-    // Começa com o próprio portfólio
-    setActiveId(saved && saved !== user.id ? saved : user.id)
+    // Começa com o próprio portfólio (refinado abaixo após ler o portfólio ativo do banco)
+    setActiveId(user.id)
 
     // ── Busca colaborações ativas
     const { data: collabs } = await (supabase as any)
@@ -93,20 +89,32 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     const all = [ownPortfolio, ...collabPortfolios]
     setPortfolios(all)
 
-    // Valida seleção salva — se não for válida, volta para o próprio portfólio
-    if (saved) {
-      const valid = all.find(p => p.owner_id === saved)
-      setActiveId(valid ? valid.owner_id : user.id)
-    } else {
-      setActiveId(user.id)
-    }
+    // ── Portfólio ativo é a fonte da verdade no banco (a trava RLS usa o mesmo valor)
+    const { data: act } = await (supabase as any)
+      .from('user_active_portfolio')
+      .select('active_owner_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const desired = act?.active_owner_id || user.id
+    const valid = all.find(p => p.owner_id === desired) ? desired : user.id
+    setActiveId(valid)
+    if (typeof window !== 'undefined') localStorage.setItem('active_portfolio', valid)
 
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  function switchPortfolio(ownerId: string) {
+  async function switchPortfolio(ownerId: string) {
+    // Grava o portfólio ativo no banco (a trava RLS passa a filtrar por ele).
+    // Só recarrega se o banco confirmar — assim leitura e gravação ficam sempre no mesmo portfólio.
+    const supabase = createClient()
+    const { error } = await (supabase as any).rpc('set_active_portfolio', { target: ownerId })
+    if (error) {
+      console.error('Erro ao trocar portfólio:', error.message)
+      return
+    }
     setActiveId(ownerId)
     if (typeof window !== 'undefined') {
       localStorage.setItem('active_portfolio', ownerId)
