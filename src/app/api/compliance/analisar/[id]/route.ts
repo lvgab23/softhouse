@@ -37,9 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { data: check } = await (supabase as any)
       .from('compliance_checks')
       .select('*')
-      .eq('id', params.id)
-      .eq('user_id', user!.id)
-      .single()
+      .eq('id', params.id)      .single()
 
     if (!check) return NextResponse.json({ error: 'Consulta não encontrada.' }, { status: 404 })
 

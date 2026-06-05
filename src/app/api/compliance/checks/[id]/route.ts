@@ -12,9 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const checkRes = await (supabase as any)
     .from('compliance_checks')
     .select('*')
-    .eq('id', params.id)
-    .eq('user_id', user!.id)
-    .single()
+    .eq('id', params.id)    .single()
 
   if (checkRes.error || !checkRes.data) {
     return NextResponse.json({ error: 'Consulta não encontrada' }, { status: 404 })

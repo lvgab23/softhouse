@@ -25,9 +25,7 @@ export async function POST(req: NextRequest) {
   // Busca monitorados ativos (um específico ou todos vencidos)
   let query = (supabase as any)
     .from('compliance_monitored')
-    .select('*')
-    .eq('user_id', user!.id)
-    .eq('ativo', true)
+    .select('*')    .eq('ativo', true)
 
   if (id) {
     query = query.eq('id', id)

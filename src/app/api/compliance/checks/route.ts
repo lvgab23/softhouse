@@ -9,9 +9,7 @@ export async function GET() {
   const supabase = await createClient()
   const { data, error: dbErr } = await (supabase as any)
     .from('compliance_checks')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .select('*')    .order('created_at', { ascending: false })
     .limit(100)
 
   if (dbErr) return NextResponse.json({ error: 'Erro ao buscar consultas' }, { status: 500 })
@@ -33,8 +31,6 @@ export async function DELETE(req: NextRequest) {
     .from('compliance_checks')
     .delete()
     .eq('id', id)
-    .eq('user_id', user!.id)
-
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

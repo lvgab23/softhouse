@@ -293,7 +293,7 @@ export async function POST(req: NextRequest) {
 
   const { id } = await req.json()
 
-  const query = supabase.from('diarios_monitorados').select('*').eq('user_id', user.id).eq('ativo', true)
+  const query = supabase.from('diarios_monitorados').select('*').eq('ativo', true)
   if (id) query.eq('id', id)
 
   const { data: termos, error: termoErr } = await query
@@ -349,7 +349,7 @@ export async function GET(req: NextRequest) {
   const id = new URL(req.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
-  const { data: mon } = await supabase.from('diarios_monitorados').select('id').eq('id', id).eq('user_id', user.id).single()
+  const { data: mon } = await supabase.from('diarios_monitorados').select('id').eq('id', id).single()
   if (!mon) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { data: resultados } = await supabase

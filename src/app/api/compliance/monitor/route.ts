@@ -18,9 +18,7 @@ export async function GET() {
   const supabase = await createClient()
   const { data, error: dbErr } = await (supabase as any)
     .from('compliance_monitored')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .select('*')    .order('created_at', { ascending: false })
 
   if (dbErr) return NextResponse.json({ error: 'Erro ao buscar monitorados' }, { status: 500 })
   return NextResponse.json(data)
@@ -79,8 +77,6 @@ export async function DELETE(req: NextRequest) {
     .from('compliance_monitored')
     .delete()
     .eq('id', id)
-    .eq('user_id', user!.id)
-
   if (dbErr) return NextResponse.json({ error: 'Erro ao remover' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

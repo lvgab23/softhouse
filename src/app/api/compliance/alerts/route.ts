@@ -9,9 +9,7 @@ export async function GET() {
   const supabase = await createClient()
   const { data, error: dbErr } = await (supabase as any)
     .from('compliance_alerts')
-    .select('*, compliance_checks(documento, tipo, nome)')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .select('*, compliance_checks(documento, tipo, nome)')    .order('created_at', { ascending: false })
     .limit(100)
 
   if (dbErr) return NextResponse.json({ error: 'Erro ao buscar alertas' }, { status: 500 })
@@ -29,7 +27,5 @@ export async function PATCH(req: NextRequest) {
     .from('compliance_alerts')
     .update({ lido })
     .in('id', ids)
-    .eq('user_id', user!.id)
-
   return NextResponse.json({ ok: true })
 }

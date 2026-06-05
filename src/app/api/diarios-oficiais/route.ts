@@ -12,9 +12,7 @@ export async function GET() {
       *,
       resultados:diarios_resultados(count),
       novos:diarios_resultados(count)
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    `)    .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data || [])
@@ -50,8 +48,6 @@ export async function DELETE(req: NextRequest) {
     .from('diarios_monitorados')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
