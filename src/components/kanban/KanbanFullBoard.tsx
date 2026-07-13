@@ -132,9 +132,15 @@ function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
-interface Props { boardType: BoardType; title: string; subtitle: string }
+interface Props {
+  boardType: BoardType; title: string; subtitle: string
+  // Modo "quadro personalizado" (estilo Trello): colunas vêm do banco (kanban_boards)
+  // e os cards são filtrados por board_id em vez de board_type.
+  board?: { id: string; initialColumns: FullKanbanColumn[] }
+}
 
-export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
+export function KanbanFullBoard({ boardType, title, subtitle, board }: Props) {
+  const custom = !!board
   const storageKey = `kanban_full_cols_${boardType}`
 
   const [cards, setCards]             = useState<FullKanbanCard[]>([])
@@ -154,7 +160,15 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
   const labelsKey = `kanban_col_labels_${boardType}`
   const { activeOwnerId } = usePortfolio()
 
+  // Persiste as colunas no banco (só no modo quadro personalizado)
+  const persistColumns = useCallback(async (cols: FullKanbanColumn[]) => {
+    if (!board) return
+    const sb = createClient() as any
+    await sb.from('kanban_boards').update({ columns: cols }).eq('id', board.id)
+  }, [board])
+
   const loadColumns = useCallback(() => {
+    if (board) { setColumns(board.initialColumns); return }
     const defaults = BOARD_COLS[boardType]
     try {
       const saved    = JSON.parse(localStorage.getItem(storageKey) || '[]') as FullKanbanColumn[]
@@ -164,15 +178,17 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
       // Apply saved label overrides
       setColumns(cols.map(c => labels[c.id] ? { ...c, label: labels[c.id] } : c))
     } catch { setColumns(BOARD_COLS[boardType]) }
-  }, [boardType, storageKey])
+  }, [boardType, storageKey, board])
 
   function saveColLabel(colId: string, newLabel: string) {
     if (!newLabel.trim()) return
+    const updated = columns.map(c => c.id === colId ? { ...c, label: newLabel.trim() } : c)
+    setColumns(updated)
+    setEditingColId(null)
+    if (custom) { persistColumns(updated); return }
     const labels = JSON.parse(localStorage.getItem(labelsKey) || '{}') as Record<string, string>
     labels[colId] = newLabel.trim()
     localStorage.setItem(labelsKey, JSON.stringify(labels))
-    setColumns(prev => prev.map(c => c.id === colId ? { ...c, label: newLabel.trim() } : c))
-    setEditingColId(null)
   }
 
   // ── Auto-sync original records into kanban_cards ─────────────────────────────
@@ -215,19 +231,19 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
     if (!user) { setLoading(false); return }
     if (!activeOwnerId) { setLoading(false); return }
 
-    const { data, error } = await sb
+    let q = sb
       .from('kanban_cards')
       .select('*, checklist_items:kanban_checklist_items(id, is_completed)')
-      .eq('board_type', boardType)
       .eq('user_id', activeOwnerId)
-      .order('position')
+    q = board ? q.eq('board_id', board.id) : q.eq('board_type', boardType)
+    const { data, error } = await q.order('position')
 
     if (error) { toast.error(error.message); setLoading(false); return }
 
-    const synced = await syncFromOriginalTable(sb, activeOwnerId, data || [])
+    const synced = board ? (data || []) : await syncFromOriginalTable(sb, activeOwnerId, data || [])
     setCards(synced as FullKanbanCard[])
     setLoading(false)
-  }, [boardType, syncFromOriginalTable, activeOwnerId])
+  }, [boardType, syncFromOriginalTable, activeOwnerId, board])
 
   useEffect(() => { loadColumns(); fetchCards() }, [loadColumns, fetchCards])
 
@@ -256,10 +272,14 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
     const sb = createClient() as any
     const { data: { user } } = await sb.auth.getUser()
     if (!user) { toast.error('Não autenticado'); setCreating(false); return }
-    const { data, error } = await sb.from('kanban_cards').insert({
-      board_type: boardType, column_id: colId, title: quickTitle.trim(),
+    const insertPayload: any = {
+      column_id: colId, title: quickTitle.trim(),
       user_id: activeOwnerId || user.id, position: cards.filter(c => c.column_id === colId).length,
-    }).select('*, checklist_items:kanban_checklist_items(id, is_completed)').single()
+      board_type: custom ? 'custom' : boardType,
+    }
+    if (custom) insertPayload.board_id = board!.id
+    const { data, error } = await sb.from('kanban_cards').insert(insertPayload)
+      .select('*, checklist_items:kanban_checklist_items(id, is_completed)').single()
     if (error) { toast.error(error.message); setCreating(false); return }
     await sb.from('kanban_activity_logs').insert({ card_id: data.id, user_id: user.id, action_type: 'created', new_value: data.title })
     setCards(prev => [...prev, data as FullKanbanCard])
@@ -276,18 +296,22 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
     const newCol: FullKanbanColumn = { id, label: newColLabel.trim(), ...colorConf, isCustom: true }
     const updated = [...columns, newCol]
     setColumns(updated)
-    localStorage.setItem(storageKey, JSON.stringify(updated.filter(c => c.isCustom)))
+    if (custom) persistColumns(updated)
+    else localStorage.setItem(storageKey, JSON.stringify(updated.filter(c => c.isCustom)))
     setNewColLabel(''); setAddingCol(false)
     toast.success(`Coluna "${newCol.label}" criada!`)
   }
 
   function deleteColumn(col: FullKanbanColumn) {
-    if (!col.isCustom) { toast.error('Colunas padrão não podem ser removidas'); return }
+    if (!custom && !col.isCustom) { toast.error('Colunas padrão não podem ser removidas'); return }
+    if (columns.length <= 1) { toast.error('O quadro precisa de pelo menos 1 coluna'); return }
     if (!confirm(`Remover coluna "${col.label}"?`)) return
-    setCards(prev => prev.map(c => c.column_id === col.id ? { ...c, column_id: columns[0].id } : c))
+    const fallback = columns.find(c => c.id !== col.id)!.id
+    setCards(prev => prev.map(c => c.column_id === col.id ? { ...c, column_id: fallback } : c))
     const updated = columns.filter(c => c.id !== col.id)
     setColumns(updated)
-    localStorage.setItem(storageKey, JSON.stringify(updated.filter(c => c.isCustom)))
+    if (custom) persistColumns(updated)
+    else localStorage.setItem(storageKey, JSON.stringify(updated.filter(c => c.isCustom)))
   }
 
   const grouped = useMemo(() => {
@@ -380,7 +404,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.color }} />
                           <span className="text-xs font-semibold truncate" style={{ color: col.text }}>{col.label}</span>
-                          {(boardType === 'pipeline' || boardType === 'adm') && (
+                          {(custom || boardType === 'pipeline' || boardType === 'adm') && (
                             <button
                               onClick={() => { setEditingColId(col.id); setEditingColLabel(col.label) }}
                               className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/50 flex-shrink-0 transition-opacity"
@@ -396,7 +420,7 @@ export function KanbanFullBoard({ boardType, title, subtitle }: Props) {
                         <span className="text-xs font-bold bg-white/70 rounded-full w-5 h-5 flex items-center justify-center" style={{ color: col.text }}>
                           {colCards.length}
                         </span>
-                        {col.isCustom && editingColId !== col.id && (
+                        {(custom || col.isCustom) && editingColId !== col.id && (
                           <button onClick={() => deleteColumn(col)}
                             className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-400 transition-opacity">
                             <X className="h-3 w-3" />

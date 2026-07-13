@@ -104,6 +104,15 @@ Aplicar via SQL Editor do Supabase (role postgres). Estado:
 - **013** `multitenant_rls.sql` — ✅ aplicada 2026-06-05.
 - **014** `multitenant_rls_filhas.sql` — ✅ aplicada 2026-06-05.
 - **015** `kanban_bucket.sql` — ⚠️ criar o bucket privado (rodar quando for testar anexos do Kanban).
+- **016** `kanban_boards.sql` — ⚠️ EM TESTE (branch `feature/kanban-quadros`). Quadros personalizados do Kanban (estilo Trello): tabela `kanban_boards` (nome, cor, colunas jsonb) + coluna `board_id` em `kanban_cards` + CHECK de `board_type` inclui 'custom'/'adm'. Rodar só quando for testar a feature.
+
+## 🆕 Feature EM TESTE — Múltiplos quadros no Kanban (estilo Trello)
+
+**Branch:** `feature/kanban-quadros` (deploy de PREVIEW na Vercel — NÃO é produção). Só vai pra `main`/produção depois do Luiz validar.
+**Decisões do Luiz:** só cor/ícone (sem foto de capa); Pipeline atual fica **fixado e separado** (intacto); colunas **personalizáveis por quadro**. Mexer **só no `/kanban`** (abaixo de Evolução) — NÃO tocar nos kanbans de módulo (negócios, bens, financeiro, projetos, investimentos).
+**Como funciona:** `/kanban` vira a tela "Seus quadros" (grade): Pipeline fixado no topo + quadros criados pelo usuário + botão "Novo quadro". Cada quadro tem Editar e Excluir. Clicar abre o quadro.
+**Arquivos:** `src/app/kanban/page.tsx` (seletor de quadros); `src/components/kanban/KanbanFullBoard.tsx` ganhou prop opcional `board` (modo `custom`): colunas vêm de `kanban_boards.columns` (salvas no banco), cards por `board_id`, sem auto-sync. O modo legado (boardType) continua idêntico para os outros kanbans.
+**Multi-tenant:** `kanban_boards` escopada por `current_owner()` + trigger (igual ao resto).
 
 ## ⚠️ Pontos críticos — NÃO mexer sem cuidado/ok
 
