@@ -76,6 +76,11 @@ Dashboard/Evolução/Histórico · Cadastros (imóveis, bens-móveis, fornecedor
 - **Resend**: e-mails.
 - **Storage (Kanban anexos)**: bucket privado `kanban-attachments`; leitura pela portaria `/api/kanban/anexo/[id]`.
 
+### 2026-08-05 — Kanban: mover card entre quadros + card atrasado vermelho
+- **Feature 1 (mover card):** na janela de detalhes do card (`KanbanCardDetail.tsx`), campo "Mover para outro quadro" (só aparece p/ cards do Pipeline ou de quadros personalizados — `card.board_id` setado ou `board_type==='pipeline'`). Move via update de `board_id`/`board_type`/`column_id`/`position` + `onReload()` + `onClose()`. NÃO exibido nos kanbans de módulo (evita re-sync/duplicação).
+- **Feature 2 (atrasado):** em `KanbanFullBoard.tsx`, `overdueActive = isOverdue(due_date) && !['encerrado','concluido','fechado','investido'].includes(column_id)` → card fica vermelho (bg-red-50 + border vermelha + strip vermelho) e ganha etiqueta "⚠️ Atrasado". Vale p/ todos os kanbans.
+- Sem migração nova (usa `board_id` já existente da 016). Publicado direto em produção a pedido do Luiz.
+
 ## 🐛 Bugs corrigidos (histórico)
 
 ### 2026-06-05 — Multi-tenant não isolava dados (colaborador)
@@ -104,11 +109,11 @@ Aplicar via SQL Editor do Supabase (role postgres). Estado:
 - **013** `multitenant_rls.sql` — ✅ aplicada 2026-06-05.
 - **014** `multitenant_rls_filhas.sql` — ✅ aplicada 2026-06-05.
 - **015** `kanban_bucket.sql` — ⚠️ criar o bucket privado (rodar quando for testar anexos do Kanban).
-- **016** `kanban_boards.sql` — ⚠️ EM TESTE (branch `feature/kanban-quadros`). Quadros personalizados do Kanban (estilo Trello): tabela `kanban_boards` (nome, cor, colunas jsonb) + coluna `board_id` em `kanban_cards` + CHECK de `board_type` inclui 'custom'/'adm'. Rodar só quando for testar a feature.
+- **016** `kanban_boards.sql` — ✅ APLICADA no Supabase em 2026-07-13. Quadros personalizados do Kanban (estilo Trello): tabela `kanban_boards` (nome, cor, colunas jsonb) + coluna `board_id` em `kanban_cards` + CHECK de `board_type` inclui 'custom'/'adm'.
 
-## 🆕 Feature EM TESTE — Múltiplos quadros no Kanban (estilo Trello)
+## 🆕 Feature — Múltiplos quadros no Kanban (estilo Trello) — PUBLICADA 2026-07-13
 
-**Branch:** `feature/kanban-quadros` (deploy de PREVIEW na Vercel — NÃO é produção). Só vai pra `main`/produção depois do Luiz validar.
+**Publicada em produção** (merge feature/kanban-quadros → main → softhouse-nine).
 **Decisões do Luiz:** só cor/ícone (sem foto de capa); Pipeline atual fica **fixado e separado** (intacto); colunas **personalizáveis por quadro**. Mexer **só no `/kanban`** (abaixo de Evolução) — NÃO tocar nos kanbans de módulo (negócios, bens, financeiro, projetos, investimentos).
 **Como funciona:** `/kanban` vira a tela "Seus quadros" (grade): Pipeline fixado no topo + quadros criados pelo usuário + botão "Novo quadro". Cada quadro tem Editar e Excluir. Clicar abre o quadro.
 **Arquivos:** `src/app/kanban/page.tsx` (seletor de quadros); `src/components/kanban/KanbanFullBoard.tsx` ganhou prop opcional `board` (modo `custom`): colunas vêm de `kanban_boards.columns` (salvas no banco), cards por `board_id`, sem auto-sync. O modo legado (boardType) continua idêntico para os outros kanbans.

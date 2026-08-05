@@ -438,6 +438,7 @@ export function KanbanFullBoard({ boardType, title, subtitle, board }: Props) {
                             const totalCheck = card.checklist_items?.length ?? 0
                             const doneCheck  = card.checklist_items?.filter(i => i.is_completed).length ?? 0
                             const overdue    = isOverdue(card.due_date)
+                            const overdueActive = overdue && !['encerrado','concluido','fechado','investido'].includes(card.column_id)
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index}>
                                 {(provided, snapshot) => (
@@ -445,10 +446,18 @@ export function KanbanFullBoard({ boardType, title, subtitle, board }: Props) {
                                     className={snapshot.isDragging ? 'rotate-1 scale-[1.02]' : ''}>
                                     <div {...provided.dragHandleProps}
                                       onClick={() => setSelected(card.id)}
-                                      className="bg-white rounded-xl border border-black/[0.07] shadow-sm hover:shadow-md hover:border-black/[0.14] transition-all cursor-pointer group/card overflow-hidden">
+                                      className={`rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer group/card overflow-hidden ${overdueActive ? 'bg-red-50 border-red-300 ring-1 ring-red-200 hover:border-red-400' : 'bg-white border-black/[0.07] hover:border-black/[0.14]'}`}>
                                       {/* Priority strip */}
-                                      <div className="h-1 w-full" style={{ background: PRIORITY_COLOR[card.priority] }} />
+                                      <div className="h-1 w-full" style={{ background: overdueActive ? '#ef4444' : PRIORITY_COLOR[card.priority] }} />
                                       <div className="p-3">
+                                        {/* Atrasado badge */}
+                                        {overdueActive && (
+                                          <div className="mb-1.5">
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold uppercase tracking-wide">
+                                              <Clock className="h-2.5 w-2.5" /> Atrasado
+                                            </span>
+                                          </div>
+                                        )}
                                         {/* Linked badge */}
                                         {card.related_object_id && (
                                           <div className="flex items-center gap-1 mb-1.5">

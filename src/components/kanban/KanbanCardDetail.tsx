@@ -119,6 +119,9 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
   const [valorEst, setValorEst]         = useState<number | null>(card.valor_estimado ?? null)
   const [valorReal, setValorReal]       = useState<number | null>(card.valor_real ?? null)
   const [converting, setConverting]     = useState(false)
+  const [boards, setBoards]             = useState<Array<{ id: string; name: string; columns: any[] }>>([])
+  const [movingBoard, setMovingBoard]   = useState(false)
+  const cardBoardId = (card as any).board_id as string | null
 
   // related data
   const [checklist, setChecklist]       = useState<ChecklistItem[]>([])
@@ -151,19 +154,21 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
   // ── Load all data ────────────────────────────────────────────────────────────
   const loadDetail = useCallback(async () => {
     setLoading(true)
-    const [{ data: cl }, { data: tk }, { data: cm }, { data: ac }, { data: at }, { data: { user } }] = await Promise.all([
+    const [{ data: cl }, { data: tk }, { data: cm }, { data: ac }, { data: at }, { data: { user } }, { data: bd }] = await Promise.all([
       supabase.from('kanban_checklist_items').select('*').eq('card_id', card.id).order('order_index'),
       supabase.from('kanban_tasks').select('*').eq('card_id', card.id).order('created_at'),
       supabase.from('kanban_comments').select('*').eq('card_id', card.id).order('created_at'),
       supabase.from('kanban_activity_logs').select('*').eq('card_id', card.id).order('created_at', { ascending: false }).limit(30),
       supabase.from('kanban_attachments').select('*').eq('card_id', card.id).order('created_at'),
       supabase.auth.getUser(),
+      supabase.from('kanban_boards').select('id, name, columns').order('name'),
     ])
     setChecklist(cl || [])
     setTasks(tk || [])
     setComments(cm || [])
     setActivity(ac || [])
     setAttachments(at || [])
+    setBoards(bd || [])
     if (user) { setUserId(user.id); setUserEmail(user.email || '') }
     setLoading(false)
   }, [card.id])
@@ -214,6 +219,23 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
     setColumnId(val)
     await saveField('column_id', val, 'moved', oldLabel, newLabel)
     toast.success(`Movido para ${newLabel}`)
+  }
+
+  // ── Mover card para outro quadro ─────────────────────────────────────────────
+  async function moveToBoard(target: 'pipeline' | { id: string; name: string; columns: any[] }) {
+    setMovingBoard(true)
+    const payload = target === 'pipeline'
+      ? { board_id: null, board_type: 'pipeline', column_id: 'primeira_reuniao', position: 0 }
+      : { board_id: target.id, board_type: 'custom', column_id: target.columns?.[0]?.id || 'a_fazer', position: 0 }
+    const { error } = await supabase.from('kanban_cards')
+      .update({ ...payload, updated_at: new Date().toISOString() }).eq('id', card.id)
+    setMovingBoard(false)
+    if (error) { toast.error(error.message); return }
+    const destName = target === 'pipeline' ? 'Pipeline de Oportunidades' : target.name
+    await log('moved_board', undefined, destName)
+    toast.success(`Card movido para "${destName}"`)
+    onReload?.()
+    onClose()
   }
 
   // ── Responsible ──────────────────────────────────────────────────────────────
@@ -955,6 +977,30 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
                 {columns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
+
+            {/* Mover para outro quadro (só Pipeline e quadros personalizados) */}
+            {(cardBoardId || card.board_type === 'pipeline') && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><ArrowRight className="h-3 w-3" /> Mover para outro quadro</label>
+                <select
+                  value=""
+                  disabled={movingBoard}
+                  onChange={e => {
+                    const v = e.target.value
+                    if (!v) return
+                    if (v === 'pipeline') moveToBoard('pipeline')
+                    else { const b = boards.find(x => x.id === v); if (b) moveToBoard(b) }
+                  }}
+                  className="w-full h-8 text-xs border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white">
+                  <option value="">{movingBoard ? 'Movendo...' : '— Escolher quadro destino —'}</option>
+                  {cardBoardId && <option value="pipeline">Pipeline de Oportunidades</option>}
+                  {boards.filter(b => b.id !== cardBoardId).map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400">O card sai deste quadro e vai para a primeira coluna do quadro escolhido.</p>
+              </div>
+            )}
 
             {/* Responsible */}
             <div className="space-y-1.5">
