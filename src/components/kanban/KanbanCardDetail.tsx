@@ -788,7 +788,7 @@ export function KanbanCardDetail({ card, columns, boardType, onClose, onSaved, o
                           </button>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">{c.comment}</p>
+                      <p className="text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 whitespace-pre-wrap break-words">{c.comment}</p>
                     </div>
                   </div>
                 ))}
